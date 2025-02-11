@@ -24,53 +24,69 @@ const Header = memo(() => (
 ));
 
 // Memoized Category Item Component
-const CategoryItem = memo(({ category, onEdit, onDelete }) => (
-  <View className="bg-white rounded-lg mb-3 p-3">
-    <View className="flex-row gap-2 items-center">
-      <Text className="text-black text-lg font-pmedium flex-1 mr-28">
+const CategoryItem = memo(({ category, onEdit, onDelete }) => {
+  if (!category) return null;
+
+  return (
+    <View className="flex-row items-center p-4 bg-white border border-gray-200 rounded-lg shadow-sm mb-2">
+      <Text
+        className="flex-1 text-gray-800 text-lg font-medium pr-2"
+        numberOfLines={1}
+      >
         {category.category_name}
       </Text>
-      <CustomButton
-        title="Edit"
-        containerStyles="rounded-md"
-        textStyles="text-white text-sm"
-        handlePress={() => onEdit(category.$id)}
-      />
-      <CustomButton
-        title="Delete"
-        containerStyles="rounded-md"
-        textStyles="text-white text-sm"
-        handlePress={() => onDelete(category.$id)}
-      />
+
+      <View className="flex-row gap-x-2">
+        <CustomButton
+          title="Edit"
+          containerStyles="rounded-md bg-blue-500 px-3 w-[60px]"
+          textStyles="text-white text-sm font-medium"
+          handlePress={() => onEdit(category.$id)}
+          buttoncolor="bg-blue-500"
+          fullWidth={false}
+        />
+        <CustomButton
+          title="Delete"
+          containerStyles="rounded-md bg-red-500 px-3 w-[60px]"
+          textStyles="text-white text-sm font-medium"
+          handlePress={() => onDelete(category.$id)}
+          buttoncolor="bg-red-500"
+          fullWidth={false}
+        />
+      </View>
     </View>
-  </View>
-));
+  );
+});
 
 // Memoized Edit Modal Component
-const EditModal = memo(({ visible, onClose, onEdit, category, onCategoryChange }) => (
-  <CustomModal
-    modalVisible={visible}
-    onSecondaryPress={onClose}
-    title="Edit Category"
-    primaryButtonText="Edit"
-    secondaryButtonText="Cancel"
-    onPrimaryPress={onEdit}
-  >
-    <View className="w-full">
-      <FormFields
-        title="Category Name"
-        placeholder="Category Name"
-        value={category.categoryname}
-        handleChangeText={(text) =>
-          onCategoryChange((prev) => ({
-            ...prev,
-            categoryname: text,
-          }))
-        }
-      />
-    </View>
-  </CustomModal>
-));
+const EditModal = memo(
+  ({ visible, onClose, onEdit, category, onCategoryChange }) => (
+    <CustomModal
+      modalVisible={visible}
+      onSecondaryPress={onClose}
+      title="Edit Category"
+      primaryButtonText="Edit"
+      secondaryButtonText="Cancel"
+      onPrimaryPress={onEdit}
+    >
+      <View className="w-full">
+        <FormFields
+          title="Category Name"
+          placeholder="Category Name"
+          value={category.categoryname}
+          inputfieldcolor="bg-white"
+          textcolor="text-gray-800"
+          handleChangeText={(text) =>
+            onCategoryChange((prev) => ({
+              ...prev,
+              categoryname: text,
+            }))
+          }
+        />
+      </View>
+    </CustomModal>
+  )
+);
 
 // Memoized Delete Modal Component
 const DeleteModal = memo(({ visible, onClose, onDelete }) => (
@@ -162,18 +178,21 @@ const CategoryList = () => {
   }, [newCategory, fetchCategories]);
 
   // Memoized delete handler
-  const handleDelete = useCallback(async (categoryId) => {
-    try {
-      const response = await deleteCategoryByID(categoryId);
-      if (response) {
-        await fetchCategories();
-        setIsDeleteVisible(false);
+  const handleDelete = useCallback(
+    async (categoryId) => {
+      try {
+        const response = await deleteCategoryByID(categoryId);
+        if (response) {
+          await fetchCategories();
+          setIsDeleteVisible(false);
+        }
+      } catch (error) {
+        console.error("Error deleting category:", error);
+        setError("Failed to delete category");
       }
-    } catch (error) {
-      console.error("Error deleting category:", error);
-      setError("Failed to delete category");
-    }
-  }, [fetchCategories]);
+    },
+    [fetchCategories]
+  );
 
   // Effect for initial fetch
   useEffect(() => {
@@ -181,21 +200,21 @@ const CategoryList = () => {
   }, [fetchCategories]);
 
   // Memoized refresh control
-  const refreshControl = useMemo(() => (
-    <RefreshControl 
-      refreshing={refreshing} 
-      onRefresh={onRefresh}
-      tintColor="#fff"
-      titleColor="#fff"
-    />
-  ), [refreshing, onRefresh]);
+  const refreshControl = useMemo(
+    () => (
+      <RefreshControl
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        tintColor="#fff"
+        titleColor="#fff"
+      />
+    ),
+    [refreshing, onRefresh]
+  );
 
   return (
     <SafeAreaView className="flex-1 bg-pink-900">
-      <ScrollView
-        className="flex-1"
-        refreshControl={refreshControl}
-      >
+      <ScrollView className="flex-1" refreshControl={refreshControl}>
         <Header />
 
         <View className="px-4 mt-4">
