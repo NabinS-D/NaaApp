@@ -8,16 +8,21 @@ const FormFields = ({
   handleChangeText,
   otherStyles,
   placeholder,
+  inputfieldcolor = "bg-black-100",
+  textcolor = "text-white-100",
+  titlecolor = "text-black-100",
   ...props
 }) => {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
     <View className={`space-y-2 ${otherStyles}`}>
-      <Text className="font-pmedium text-base text-gray-100">{title}</Text>
-      <View className="border-2 border-black-100 px-4 bg-black-100 rounded-2xl focus:border-secondary flex-row ">
+      <Text className={`font-pmedium text-base ${titlecolor}`}>{title}</Text>
+      <View
+        className={`border-white-100 px-4 ${inputfieldcolor} rounded-2xl focus:border-secondary flex-row`}
+      >
         <TextInput
-          className="text-white font-psemibold text-base py-4 flex-1"
+          className={`${textcolor} font-psemibold text-base py-4 flex-1`}
           value={value}
           placeholder={placeholder}
           placeholderTextColor="#7b7b8e"

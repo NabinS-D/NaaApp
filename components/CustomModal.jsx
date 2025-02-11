@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   buttonPrimary: {
-    backgroundColor: "#2196F3",
+    backgroundColor: "blue",
   },
   buttonSecondary: {
     backgroundColor: "#f8f8f8",

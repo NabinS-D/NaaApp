@@ -57,6 +57,8 @@ const SignUp = () => {
             handleChangeText={(text) => setForm({ ...form, username: text })}
             otherStyles="mt-7"
             placeholder="Enter your username"
+           textcolor="text-white"
+            titlecolor="text-gray-100"
           />
           <FormFields
             title="Email"
@@ -65,6 +67,8 @@ const SignUp = () => {
             otherStyles="mt-7"
             keyboardType="email-address"
             placeholder="Enter your email"
+            textcolor="text-white"
+            titlecolor="text-gray-100"
           />
 
           <FormFields
@@ -73,12 +77,15 @@ const SignUp = () => {
             handleChangeText={(text) => setForm({ ...form, password: text })}
             otherStyles="mt-7"
             placeholder="Enter your password"
+           textcolor="text-white"
+            titlecolor="text-gray-100"
           />
           <CustomButton
             title="Sign Up"
-            containerStyles="mt-0"
+            containerStyles="mt-4 mb-4"
             handlePress={() => submit(form)}
             isLoading={isSubmitting}
+            fullWidth={true}
           />
           <View className="flex-1 justify-center pt-0 flex-row">
             <Text className=" text-gray-100 font-psemibold text-base text-center">

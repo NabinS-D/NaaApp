@@ -11,7 +11,7 @@
     "test": "jest --watchAll",
     "lint": "expo lint",
     "prebuild": "npx expo prebuild",
-    "build:android": "npx eas-cli build --profile development --platform android",
+    "build:android": "npx eas-cli build --profile production --platform android",
     "eject": "expo eject"
   },
   "jest": {

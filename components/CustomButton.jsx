@@ -1,20 +1,29 @@
-import React from "react";
+import React, { memo } from "react";
 import { TouchableOpacity, Text, View, ActivityIndicator } from "react-native";
 
-export default function CustomButton({
+// Fixed CustomButton Component
+const CustomButton = ({
   title,
   handlePress,
   containerStyles = "",
   textStyles = "",
   isLoading = false,
+  fullWidth = false,
+  buttoncolor= "bg-secondary-200",
   ...props
-}) {
+}) => {
   return (
-    <View className="mt-2 justify-center items-center w-full">
+    <View
+      className={`mt-2 justify-center items-center ${
+        fullWidth ? "w-full" : "w-auto"
+      }`}
+    >
       <TouchableOpacity
         onPress={handlePress}
         activeOpacity={0.7}
-        className={`bg-secondary-200 rounded-xl min-h-[40px] justify-center items-center w-full ${containerStyles}`}
+        className={` ${buttoncolor} rounded-xl min-h-[40px] justify-center items-center ${
+          fullWidth ? "w-full" : "w-auto"
+        } ${containerStyles}`}
         disabled={isLoading}
         {...props}
       >
@@ -28,4 +37,6 @@ export default function CustomButton({
       </TouchableOpacity>
     </View>
   );
-}
+};
+
+export default CustomButton;

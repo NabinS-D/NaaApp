@@ -60,6 +60,8 @@ const SignIn = () => {
             otherStyles="mt-7"
             keyboardType="email-address"
             placeholder="Enter your email"
+            textcolor="text-white"
+            titlecolor="text-gray-100"
           />
 
           <FormFields
@@ -68,12 +70,16 @@ const SignIn = () => {
             handleChangeText={(text) => setForm({ ...form, password: text })}
             otherStyles="mt-7"
             placeholder="Enter your password"
+           textcolor="text-white"
+            titlecolor="text-gray-100"
+
           />
           <CustomButton
             title="Sign-In"
-            containerStyles="py-3 mt-2 mb-3"
+            containerStyles="mt-4 mb-4"
             handlePress={() => submit(form)}
             isLoading={isSubmitting}
+            fullWidth={true}
           />
 
           <View className="flex-1 justify-center pt-0 flex-row">
