@@ -1,4 +1,4 @@
-import { RefreshControl, ScrollView, Text, View } from "react-native";
+import { Alert, RefreshControl, ScrollView, Text, View } from "react-native";
 import React, { useEffect, useState, useCallback, memo, useMemo } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useGlobalContext } from "../../../context/GlobalProvider.js";
@@ -60,32 +60,35 @@ const CategoryItem = memo(({ category, onEdit, onDelete }) => {
 
 // Memoized Edit Modal Component
 const EditModal = memo(
-  ({ visible, onClose, onEdit, category, onCategoryChange }) => (
-    <CustomModal
-      modalVisible={visible}
-      onSecondaryPress={onClose}
-      title="Edit Category"
-      primaryButtonText="Edit"
-      secondaryButtonText="Cancel"
-      onPrimaryPress={onEdit}
-    >
-      <View className="w-full">
-        <FormFields
-          title="Category Name"
-          placeholder="Category Name"
-          value={category.categoryname}
-          inputfieldcolor="bg-white"
-          textcolor="text-gray-800"
-          handleChangeText={(text) =>
-            onCategoryChange((prev) => ({
-              ...prev,
-              categoryname: text,
-            }))
-          }
-        />
-      </View>
-    </CustomModal>
-  )
+  ({ visible, onClose, onEdit, category, onCategoryChange }) => {
+    return (
+      <CustomModal
+        modalVisible={visible}
+        onSecondaryPress={onClose}
+        title="Edit Category"
+        primaryButtonText="Edit"
+        secondaryButtonText="Cancel"
+        onPrimaryPress={onEdit}
+      >
+        <View className="w-full">
+          <FormFields
+            title="Category Name"
+            placeholder="Category Name"
+            value={category.categoryname}
+            inputfieldcolor="bg-gray-200" // Light gray background
+            textcolor="text-gray-800" // Darker text
+            bordercolor="border-gray-400" // Gray border
+            handleChangeText={(text) =>
+              onCategoryChange((prev) => ({
+                ...prev,
+                categoryname: text,
+              }))
+            }
+          />
+        </View>
+      </CustomModal>
+    );
+  }
 );
 
 // Memoized Delete Modal Component
@@ -162,6 +165,10 @@ const CategoryList = () => {
 
   // Memoized edit submission handler
   const editCategory = useCallback(async () => {
+    if (!newCategory.categoryname || newCategory.categoryname.trim() === "") {
+      Alert.alert("Error", "Category cannot be empty");
+      return null;
+    }
     try {
       const response = await handleEditCategory(
         newCategory.categoryId,

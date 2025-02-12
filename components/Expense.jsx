@@ -48,9 +48,7 @@ const CategoryItem = memo(({ item, total, onPress }) => (
   <TouchableOpacity onPress={onPress}>
     <View className="bg-white p-4 rounded-lg mr-2">
       <Text className="font-medium">{item.category_name}</Text>
-      <Text className="text-lg">
-        Rs {total?.toFixed(2) || "0.00"}
-      </Text>
+      <Text className="text-lg">Rs {total?.toFixed(2) || "0.00"}</Text>
     </View>
   </TouchableOpacity>
 ));
@@ -114,9 +112,7 @@ const ExpenseItem = memo(({ item, onLongPress }) => {
           <Text className="text-lg">
             Rs {parseFloat(item.amount).toFixed(2)}
           </Text>
-          <Text className="text-gray-500">
-            {formatDate(item.$createdAt)}
-          </Text>
+          <Text className="text-gray-500">{formatDate(item.$createdAt)}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -124,50 +120,53 @@ const ExpenseItem = memo(({ item, onLongPress }) => {
 });
 
 // Memoized Add Expense Modal Component
-const AddExpenseModal = memo(({ visible, onClose, onAdd, categories, expense, setExpense }) => (
-  <CustomModal
-    modalVisible={visible}
-    onSecondaryPress={onClose}
-    title="Add Expense"
-    primaryButtonText="Add"
-    secondaryButtonText="Cancel"
-    onPrimaryPress={onAdd}
-  >
-    <View className="w-full">
-      <TextInput
-        className="border border-gray-300 rounded-lg p-2 mb-2 w-full"
-        placeholder="Amount"
-        keyboardType="numeric"
-        value={expense.amount}
-        onChangeText={(text) => setExpense({ ...expense, amount: text })}
-      />
-      <TextInput
-        className="border border-gray-300 rounded-lg p-2 mb-2 w-full"
-        placeholder="Description"
-        value={expense.description}
-        onChangeText={(text) => setExpense({ ...expense, description: text })}
-      />
-      <View className="border border-gray-300 rounded-lg overflow-hidden mb-4 w-full">
-        <Picker
-          selectedValue={expense.categoryId}
-          onValueChange={(itemValue) =>
-            setExpense({ ...expense, categoryId: itemValue })
-          }
-          style={{ backgroundColor: "white" }}
-        >
-          <Picker.Item label="Select Category" value="" />
-          {categories.map((category) => (
-            <Picker.Item
-              key={category?.$id}
-              label={category.category_name}
-              value={category?.$id}
-            />
-          ))}
-        </Picker>
+const AddExpenseModal = memo(
+  ({ visible, onClose, onAdd, categories, expense, setExpense }) => (
+    <CustomModal
+      modalVisible={visible}
+      onSecondaryPress={onClose}
+      title="Add Expense"
+      primaryButtonText="Add"
+      secondaryButtonText="Cancel"
+      onPrimaryPress={onAdd}
+    >
+      <View className="w-full">
+        <TextInput
+          className="border border-gray-300 rounded-lg p-2 mb-2 w-full"
+          placeholder="Amount"
+          keyboardType="numeric"
+          value={expense.amount}
+          onChangeText={(text) => setExpense({ ...expense, amount: text })}
+        />
+        <TextInput
+          className="border border-gray-300 rounded-lg p-2 mb-2 w-full"
+          placeholder="Description"
+          value={expense.description}
+          onChangeText={(text) => setExpense({ ...expense, description: text })}
+        />
+        <View className="border border-gray-300 rounded-lg overflow-hidden mb-4 w-full">
+          <Picker
+            selectedValue={expense.categoryId}
+            onValueChange={(itemValue) =>
+              setExpense({ ...expense, categoryId: itemValue })
+            }
+            style={{ backgroundColor: "white" }}
+            mode="dropdown"
+          >
+            <Picker.Item label="Select Category" value="" />
+            {categories.map((category) => (
+              <Picker.Item
+                key={category?.$id}
+                label={category.category_name}
+                value={category?.$id}
+              />
+            ))}
+          </Picker>
+        </View>
       </View>
-    </View>
-  </CustomModal>
-));
+    </CustomModal>
+  )
+);
 
 const ExpenseTracker = () => {
   const { userdetails } = useGlobalContext();
@@ -180,7 +179,8 @@ const ExpenseTracker = () => {
     description: "",
     categoryId: "",
   });
-  const [isExpenseActionModalVisible, setExpenseActionModalVisible] = useState(false);
+  const [isExpenseActionModalVisible, setExpenseActionModalVisible] =
+    useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [newCategory, setNewCategory] = useState({ name: "" });
   const [refreshing, setRefreshing] = useState(false);
@@ -200,7 +200,7 @@ const ExpenseTracker = () => {
       setError(null);
       const [categoriesResponse, expensesResponse] = await Promise.all([
         fetchAllCategories(userdetails.$id),
-        fetchAllExpenses(userdetails.$id)
+        fetchAllExpenses(userdetails.$id),
       ]);
       setCategories(categoriesResponse.documents);
       setExpenses(expensesResponse);
@@ -236,7 +236,11 @@ const ExpenseTracker = () => {
   }, [newCategory, userdetails.$id, fetchData]);
 
   const addExpense = useCallback(async () => {
-    if (!newExpense.amount || !newExpense.description || !newExpense.categoryId) {
+    if (
+      !newExpense.amount ||
+      !newExpense.description ||
+      !newExpense.categoryId
+    ) {
       Alert.alert("Validation Error", "Please fill in all required fields.");
       return;
     }
@@ -274,34 +278,39 @@ const ExpenseTracker = () => {
     fetchData();
   }, [fetchData]);
 
-  const renderHeader = useCallback(() => (
-    <>
-      <View className="mb-6">
-        <HeaderButtons
-          onAddExpense={() => setExpenseModalVisible(true)}
-          onAddCategory={() => setCategoryModalVisible(true)}
-        />
-      </View>
+  const renderHeader = useCallback(
+    () => (
+      <>
+        <View className="mb-6">
+          <HeaderButtons
+            onAddExpense={() => setExpenseModalVisible(true)}
+            onAddCategory={() => setCategoryModalVisible(true)}
+          />
+        </View>
 
-      <View className="mb-6">
-        <Text className="text-xl text-cyan-100 font-plight mb-2">Category</Text>
-        <CategoriesList
-          categories={categories}
-          categoryTotals={categoryTotals}
-        />
-      </View>
+        <View className="mb-6">
+          <Text className="text-xl text-cyan-100 font-plight mb-2">
+            Category
+          </Text>
+          <CategoriesList
+            categories={categories}
+            categoryTotals={categoryTotals}
+          />
+        </View>
 
-      <Text className="text-xl text-cyan-100 font-plight mb-2">
-        Recent Expenses
-      </Text>
-
-      {expenses.length === 0 && (
-        <Text className="text-xl text-cyan-100 font-psemibold mb-2">
-          No expenses found.
+        <Text className="text-xl text-cyan-100 font-plight mb-2">
+          Recent Expenses
         </Text>
-      )}
-    </>
-  ), [categories, categoryTotals, expenses.length]);
+
+        {expenses.length === 0 && (
+          <Text className="text-xl text-cyan-100 font-psemibold mb-2">
+            No expenses found.
+          </Text>
+        )}
+      </>
+    ),
+    [categories, categoryTotals, expenses.length]
+  );
 
   return (
     <View className="flex-1 p-4">

@@ -11,6 +11,7 @@ const FormFields = ({
   inputfieldcolor = "bg-black-100",
   textcolor = "text-white-100",
   titlecolor = "text-black-100",
+  bordercolor = "border-black-100", // New prop for border color
   ...props
 }) => {
   const [showPassword, setShowPassword] = useState(false);
@@ -19,7 +20,7 @@ const FormFields = ({
     <View className={`space-y-2 ${otherStyles}`}>
       <Text className={`font-pmedium text-base ${titlecolor}`}>{title}</Text>
       <View
-        className={`border-white-100 px-4 ${inputfieldcolor} rounded-2xl focus:border-secondary flex-row`}
+        className={`px-4 rounded-2xl focus:border-secondary ${inputfieldcolor} ${bordercolor} border flex-row`}
       >
         <TextInput
           className={`${textcolor} font-psemibold text-base py-4 flex-1`}
