@@ -24,15 +24,17 @@ import {
   handleLogout,
   uploadUserProfilePicture,
 } from "../../lib/APIs/UserApi";
+import FormFields from "@/components/FormFields";
 
 const HeaderButtons = memo(({ handlePasswordChange }) => (
   <View className="flex-row justify-evenly">
-    <TouchableOpacity
-      onPress={handlePasswordChange}
-      className="bg-green-500 px-4 py-2 rounded-lg h-12 justify-center"
-    >
-      <Text className="font-pregular color-black-200">Change password</Text>
-    </TouchableOpacity>
+    <CustomButton
+      title="Change password"
+      containerStyles="w-[200]"
+      handlePress={handlePasswordChange}
+      fullWidth={false}
+      buttoncolor="bg-green-500"
+    />
   </View>
 ));
 // Memoized components for better performance
@@ -113,7 +115,6 @@ export default function Profile() {
     useState(false);
 
   const [userPasswords, setuserPasswords] = useState({ old: "", new: "" });
-  const [passwordChangeIsLoading, setPasswordChangeIsLoading] = useState(false);
 
   // Loading state check
   if (!user || !userdetails) {
@@ -329,21 +330,27 @@ export default function Profile() {
             onPrimaryPress={handlePasswordChange}
           >
             <View className="w-full">
-              <TextInput
-                className="border border-gray-300 rounded-lg p-2 mb-4"
+              <FormFields
                 placeholder="Enter old password"
                 value={userPasswords.old}
-                onChangeText={(text) =>
+                inputfieldcolor="bg-gray-200" // Light gray background
+                textcolor="text-gray-800" // Darker text
+                bordercolor="border-gray-400" // Gray border
+                handleChangeText={(text) =>
                   setuserPasswords({ ...userPasswords, old: text })
                 }
+                otherStyles="mb-4"
               />
-              <TextInput
-                className="border border-gray-300 rounded-lg p-2 mb-4"
+              <FormFields
                 placeholder="Enter new password"
                 value={userPasswords.new}
-                onChangeText={(text) =>
+                inputfieldcolor="bg-gray-200" // Light gray background
+                textcolor="text-gray-800" // Darker text
+                bordercolor="border-gray-400" // Gray border
+                handleChangeText={(text) =>
                   setuserPasswords({ ...userPasswords, new: text })
                 }
+                otherStyles="mb-4"
               />
             </View>
           </CustomModal>

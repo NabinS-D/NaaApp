@@ -9,7 +9,7 @@ const CustomButton = ({
   textStyles = "",
   isLoading = false,
   fullWidth = false,
-  buttoncolor= "bg-secondary-200",
+  buttoncolor = "bg-secondary-200",
   ...props
 }) => {
   return (
@@ -30,7 +30,9 @@ const CustomButton = ({
         {isLoading ? (
           <ActivityIndicator color="#fff" size="small" />
         ) : (
-          <Text className={`text-primary text-lg font-pregular ${textStyles}`}>
+          <Text
+            className={`text-primary text-lg font-pregular ${textStyles}`}
+          >
             {title}
           </Text>
         )}

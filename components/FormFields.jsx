@@ -3,7 +3,7 @@ import { TextInput, Text, View, TouchableOpacity, Image } from "react-native";
 import { icons } from "../constants";
 
 const FormFields = ({
-  title,
+  title = null,
   value,
   handleChangeText,
   otherStyles,
@@ -18,9 +18,11 @@ const FormFields = ({
 
   return (
     <View className={`space-y-2 ${otherStyles}`}>
-      <Text className={`font-pmedium text-base ${titlecolor}`}>{title}</Text>
+      {title && (
+        <Text className={`font-pmedium text-base ${titlecolor}`}>{title}</Text>
+      )}
       <View
-        className={`px-4 rounded-2xl focus:border-secondary ${inputfieldcolor} ${bordercolor} border flex-row`}
+        className={`px-4 rounded-2xl ${inputfieldcolor} ${bordercolor} border flex-row`}
       >
         <TextInput
           className={`${textcolor} font-psemibold text-base py-4 flex-1`}
@@ -28,10 +30,10 @@ const FormFields = ({
           placeholder={placeholder}
           placeholderTextColor="#7b7b8e"
           onChangeText={handleChangeText}
-          secureTextEntry={title.toLowerCase() === "password" && !showPassword}
+          secureTextEntry={title?.toLowerCase() === "password" && !showPassword}
           {...props}
         />
-        {title.toLowerCase() === "password" && (
+        {title?.toLowerCase() === "password" && (
           <TouchableOpacity
             onPress={() => setShowPassword(!showPassword)}
             className="ml-2 justify-center"
