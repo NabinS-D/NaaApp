@@ -10,24 +10,24 @@ import {
   Alert,
 } from "react-native";
 import { useGlobalContext } from "../../context/GlobalProvider";
-import {handleUserChatData} from "../../lib/APIs/UserApi.js";
+import { handleUserChatData } from "../../lib/APIs/UserApi.js";
+import useAlertContext from "@/context/AlertProvider";
 
 export default function Dashboard() {
   const { user } = useGlobalContext();
+  const { showAlert } = useAlertContext();
   // Initialize chatData as an empty array to prevent undefined errors
   const [chatData, setChatData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const getUserData = useCallback(async () => {
     if (!user?.$id) {
-      setError("User ID not found. Please log in again.");
+      showAlert("Error", "User ID not found. Please log in again.");
       return;
     }
 
     setIsLoading(true);
-    setError(null);
 
     try {
       const documents = await handleUserChatData(user.$id);
@@ -35,9 +35,7 @@ export default function Dashboard() {
     } catch (err) {
       const errorMessage =
         err?.message || "Failed to fetch chat data. Please try again later.";
-      setError(errorMessage);
-      Alert.alert("Error", errorMessage);
-      console.error("Error fetching chat data:", err);
+      showAlert("Error", errorMessage, "error");
       setChatData([]);
     } finally {
       setIsLoading(false);
@@ -90,15 +88,6 @@ export default function Dashboard() {
     []
   );
 
-  const renderError = useCallback(
-    () => (
-      <View className="flex-1 justify-center items-center px-4">
-        <Text className="text-lg text-red-300 text-center">{error}</Text>
-      </View>
-    ),
-    [error]
-  );
-
   if (isLoading && !refreshing) {
     return (
       <SafeAreaView className="flex-1 bg-[#7C1F4E]">
@@ -116,29 +105,24 @@ export default function Dashboard() {
           Dashboard
         </Text>
       </View>
-
-      {error ? (
-        renderError()
-      ) : (
-        <FlatList
-          data={chatData || []} // Ensure data is always an array
-          renderItem={renderItem}
-          keyExtractor={(item) => item?.$id || Math.random().toString()}
-          ListEmptyComponent={renderEmpty}
-          contentContainerStyle={{
-            paddingHorizontal: 16,
-            paddingBottom: 16,
-            flexGrow: !chatData?.length ? 1 : undefined,
-          }}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="#ffffff"
-            />
-          }
-        />
-      )}
+      <FlatList
+        data={chatData || []} // Ensure data is always an array
+        renderItem={renderItem}
+        keyExtractor={(item) => item?.$id || Math.random().toString()}
+        ListEmptyComponent={renderEmpty}
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingBottom: 16,
+          flexGrow: !chatData?.length ? 1 : undefined,
+        }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#ffffff"
+          />
+        }
+      />
     </SafeAreaView>
   );
 }

@@ -4,6 +4,7 @@ import { useFonts } from "expo-font";
 import { StatusBar } from "expo-status-bar";
 import "../global.css";
 import GlobalProvider from "../context/GlobalProvider";
+import { AlertProvider } from "../context/AlertProvider";
 
 const RootLayout = () => {
   const [fontsLoaded, error] = useFonts({
@@ -26,44 +27,46 @@ const RootLayout = () => {
   }, [fontsLoaded, error]);
 
   return (
-    <GlobalProvider>
-      <StatusBar style="dark" />
-      <Stack
-        screenOptions={{
-          headerStyle: {
-            backgroundColor: "#7C1F4E",
-          },
-          headerTintColor: "#fff",
-          headerTitleStyle: {
-            fontWeight: "bold",
-            fontFamily: "Poppins-Bold",
-            fontSize: 20,
-          },
-          headerShown: false,
-        }}
-      >
-        <Stack.Screen
-          name="(auth)"
-          options={{
+    <AlertProvider>
+      <GlobalProvider>
+        <StatusBar style="dark" />
+        <Stack
+          screenOptions={{
+            headerStyle: {
+              backgroundColor: "#7C1F4E",
+            },
+            headerTintColor: "#fff",
+            headerTitleStyle: {
+              fontWeight: "bold",
+              fontFamily: "Poppins-Bold",
+              fontSize: 20,
+            },
             headerShown: false,
           }}
-        />
-        <Stack.Screen
-          name="(tabs)"
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="index"
-          options={{
-            headerShown: false,
-            // This helps with the initial navigation flow
-            presentation: "containedModal",
-          }}
-        />
-      </Stack>
-    </GlobalProvider>
+        >
+          <Stack.Screen
+            name="(auth)"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="(tabs)"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="index"
+            options={{
+              headerShown: false,
+              // This helps with the initial navigation flow
+              presentation: "containedModal",
+            }}
+          />
+        </Stack>
+      </GlobalProvider>
+    </AlertProvider>
   );
 };
 

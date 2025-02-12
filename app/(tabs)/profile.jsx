@@ -4,13 +4,11 @@ import {
   Text,
   StyleSheet,
   Image,
-  Alert,
   ScrollView,
   ActivityIndicator,
   TouchableOpacity,
   Pressable,
   RefreshControl,
-  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useGlobalContext } from "../../context/GlobalProvider";
@@ -25,6 +23,7 @@ import {
   uploadUserProfilePicture,
 } from "../../lib/APIs/UserApi";
 import FormFields from "@/components/FormFields";
+import useAlertContext from "@/context/AlertProvider";
 
 const HeaderButtons = memo(({ handlePasswordChange }) => (
   <View className="flex-row justify-evenly">
@@ -106,6 +105,7 @@ const ModalOptions = memo(({ onOptionPress }) => (
 
 export default function Profile() {
   const { user, userdetails, checkAuth, setuserdetails } = useGlobalContext();
+  const { showAlert } = useAlertContext();
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -115,6 +115,7 @@ export default function Profile() {
     useState(false);
   const [passwordChangeIsLoading, setPasswordChangeIsLoading] = useState(false);
   const [userPasswords, setuserPasswords] = useState({ old: "", new: "" });
+  const [passwordChangeIsLoading, setPasswordChangeIsLoading] = useState(false);
 
   // Loading state check
   if (!user || !userdetails) {
@@ -135,9 +136,11 @@ export default function Profile() {
       await checkAuth();
       router.replace("/signin");
     } catch (error) {
-      Alert.alert("Logout Error", "Unable to log out. Please try again.", [
-        { text: "OK" },
-      ]);
+      showAlert(
+        "Logout Error",
+        "Unable to log out. Please try again.",
+        "error"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -159,11 +162,12 @@ export default function Profile() {
           ...prev,
           avatar: fileUrl,
         }));
-        Alert.alert("Success", "Profile picture uploaded successfully!");
+        showAlert("Success", "Profile picture uploaded successfully!");
       } catch (error) {
-        Alert.alert(
+        showAlert(
           "Error",
-          `Failed to upload profile picture: ${error.message}`
+          `Failed to upload profile picture: ${error.message}`,
+          "error"
         );
       } finally {
         setIsUploading(false);
@@ -175,10 +179,12 @@ export default function Profile() {
   const pickImage = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert(
+      showAlert(
         "Permissions needed",
-        "Sorry, we need camera roll permissions to make this work!"
+        "Sorry, we need camera roll permissions to make this work!",
+        "error"
       );
+
       return;
     }
 
@@ -194,8 +200,7 @@ export default function Profile() {
         await handleProfilePictureUpload(result.assets[0]);
       }
     } catch (error) {
-      console.error("Image pick error:", error);
-      Alert.alert("Error", "Failed to pick image");
+      showAlert("Error", "Failed to pick image", "error");
     }
   }, [handleProfilePictureUpload]);
 
@@ -234,8 +239,7 @@ export default function Profile() {
         }
       }
     } catch (err) {
-      console.error("Camera error:", err);
-      Alert.alert("Error", "Failed to access camera");
+      showAlert("Error", "Failed to access camera", "error");
     }
   }, [handleProfilePictureUpload]);
 
@@ -255,9 +259,13 @@ export default function Profile() {
     setPasswordChangeIsLoading(true);
     try {
       await changePassword(userPasswords, userdetails.$id);
-      Alert.alert("Success", "Password changed successfully!");
+      showAlert("Success", "Password changed successfully!");
     } catch (error) {
-      Alert.alert("Error", `Failed to change password: ${error.message}`);
+      showAlert(
+        "Error",
+        `Failed to change password: ${error.message}`,
+        "error"
+      );
     } finally {
       setIsLoading(false);
       setPasswordChangeModalVisible(false);
