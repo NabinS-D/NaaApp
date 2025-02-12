@@ -113,7 +113,6 @@ export default function Profile() {
   const [refreshing, setRefreshing] = useState(false);
   const [passwordChangeModalVisible, setPasswordChangeModalVisible] =
     useState(false);
-  const [passwordChangeIsLoading, setPasswordChangeIsLoading] = useState(false);
   const [userPasswords, setuserPasswords] = useState({ old: "", new: "" });
   const [passwordChangeIsLoading, setPasswordChangeIsLoading] = useState(false);
 
