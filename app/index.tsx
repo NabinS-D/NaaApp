@@ -1,4 +1,11 @@
-import { ActivityIndicator, Image, ScrollView, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Image,
+  ScrollView,
+  Text,
+  View,
+  Alert,
+} from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Redirect, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -6,29 +13,31 @@ import { images } from "../constants";
 import CustomButton from "../components/CustomButton";
 import { useGlobalContext } from "../context/GlobalProvider";
 import React, { useEffect } from "react";
-import * as Updates from 'expo-updates';
+import * as Updates from "expo-updates";
+
+// Function to check and apply updates
+async function checkForUpdates() {
+  if (!__DEV__) {
+    try {
+      const update = await Updates.checkForUpdateAsync();
+      if (update.isAvailable) {
+        await Updates.fetchUpdateAsync();
+        Alert.alert("Update Available", "Restarting app to apply updates...");
+        await Updates.reloadAsync();
+      }
+    } catch (error) {
+      console.log(`Error checking updates: ${error}`);
+    }
+  }
+}
 
 export default function App() {
-  // useEffect(() => {
-  //   async function checkUpdates() {
-  //     if (!__DEV__) {
-  //       try {
-  //         const update = await Updates.checkForUpdateAsync();
-  //         if (update.isAvailable) {
-  //           await Updates.fetchUpdateAsync();
-  //           await Updates.reloadAsync();
-  //         }
-  //       } catch (error) {
-  //         console.log(`Error checking updates: ${error}`);
-  //       }
-  //     }
-  //   }
+  useEffect(() => {
+    checkForUpdates();
+  }, []);
 
-  //   checkUpdates();
-  // }, []);
   const { isLoggedIn, isLoading } = useGlobalContext();
 
-  // Show loading state while checking auth
   if (isLoading) {
     return (
       <SafeAreaView style={{ backgroundColor: "#7C1F4E", height: "100%" }}>
@@ -39,7 +48,6 @@ export default function App() {
     );
   }
 
-  // Redirect to home if user is logged in
   if (isLoggedIn) {
     return <Redirect href="/(tabs)/home" />;
   }
@@ -48,7 +56,7 @@ export default function App() {
     <SafeAreaView style={{ backgroundColor: "#7C1F4E", height: "100%" }}>
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <View className=" mt-10">
+        <View className="mt-10">
           <View className="items-center mt-8">
             <Image
               source={images.NaaApp}
@@ -75,13 +83,14 @@ export default function App() {
               style={{
                 width: 136,
                 height: 15,
-                position: "absolute", // Absolute positioning
+                position: "absolute",
                 bottom: -8,
                 left: 120,
               }}
               resizeMode="contain"
             />
           </View>
+
           <View className="mt-5 text-center justify-center items-center">
             <Text className="font-pextralight text-white">
               It's never too late to start your journey.
