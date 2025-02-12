@@ -113,7 +113,7 @@ export default function Profile() {
   const [refreshing, setRefreshing] = useState(false);
   const [passwordChangeModalVisible, setPasswordChangeModalVisible] =
     useState(false);
-
+  const [passwordChangeIsLoading, setPasswordChangeIsLoading] = useState(false);
   const [userPasswords, setuserPasswords] = useState({ old: "", new: "" });
 
   // Loading state check
@@ -358,14 +358,16 @@ export default function Profile() {
       )}
 
       {modalVisible && (
-        <CustomModal
-          title="Select an Action"
-          modalVisible={modalVisible}
-          onSecondaryPress={toggleModal}
-          onPrimaryPress={toggleModal}
-        >
-          <ModalOptions onOptionPress={handleOptionPress} />
-        </CustomModal>
+        <View style={styles.previewOverlay}>
+          <CustomModal
+            title="Select an Action"
+            modalVisible={modalVisible}
+            onSecondaryPress={toggleModal}
+            onPrimaryPress={toggleModal}
+          >
+            <ModalOptions onOptionPress={handleOptionPress} />
+          </CustomModal>
+        </View>
       )}
     </SafeAreaView>
   );
@@ -451,9 +453,9 @@ const styles = StyleSheet.create({
   },
   previewImage: {
     width: "100%", // Full width
-    height: undefined, // Let height be calculated based on aspect ratio
+    height: "100%", // Let height be calculated based on aspect ratio
     aspectRatio: 1, // Maintain aspect ratio
-    resizeMode: "contain", // Ensure whole image is visible
+    resizeMode: "cover", // Ensure whole image is visible
   },
   closeButton: {
     position: "absolute",
