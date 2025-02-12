@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
 import { ScrollView, RefreshControl } from "react-native";
 import { expensesOfCategory } from "../../../lib/APIs/ExpenseApi";
+import useAlertContext from "@/context/AlertProvider";
 
 // Memoized Category Header Component
 const CategoryHeader = memo(({ title }) => (
@@ -21,9 +22,7 @@ const ExpenseItem = memo(({ expense, formatDate }) => (
       <Text className="font-pmedium">{expense.description}</Text>
       <Text className="text-gray-500">{formatDate(expense.$createdAt)}</Text>
     </View>
-    <Text className="text-lg">
-      Rs {parseFloat(expense.amount).toFixed(2)}
-    </Text>
+    <Text className="text-lg">Rs {parseFloat(expense.amount).toFixed(2)}</Text>
   </View>
 ));
 
@@ -38,28 +37,27 @@ const ExpensesList = memo(({ expenses, formatDate }) => {
   }
 
   return expenses.map((expense) => (
-    <ExpenseItem
-      key={expense.$id}
-      expense={expense}
-      formatDate={formatDate}
-    />
+    <ExpenseItem key={expense.$id} expense={expense} formatDate={formatDate} />
   ));
 });
 
 const Details = () => {
   const params = useLocalSearchParams();
-  
+
   // Memoize params processing
-  const { categoryId, title } = useMemo(() => ({
-    categoryId: Array.isArray(params.categoryId)
-      ? params.categoryId[0]
-      : params.categoryId,
-    title: Array.isArray(params.title) ? params.title[0] : params.title
-  }), [params.categoryId, params.title]);
+  const { categoryId, title } = useMemo(
+    () => ({
+      categoryId: Array.isArray(params.categoryId)
+        ? params.categoryId[0]
+        : params.categoryId,
+      title: Array.isArray(params.title) ? params.title[0] : params.title,
+    }),
+    [params.categoryId, params.title]
+  );
 
   const [expenses, setExpenses] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
+  const { showAlert } = useAlertContext();
 
   // Memoized date formatter
   const formatDate = useCallback((timestamp) => {
@@ -77,12 +75,10 @@ const Details = () => {
   // Memoized fetch function
   const fetchData = useCallback(async () => {
     try {
-      setError(null);
       const result = await expensesOfCategory(categoryId);
       setExpenses(result);
     } catch (error) {
-      console.error("Error fetching expenses:", error);
-      setError("Failed to fetch expenses");
+      showAlert("Error", `Failed to fetch expenses! ${error.message}`, "error");
     }
   }, [categoryId]);
 
@@ -92,8 +88,11 @@ const Details = () => {
     try {
       await fetchData();
     } catch (error) {
-      console.error("Refresh error:", error);
-      setError("Failed to refresh expenses");
+      showAlert(
+        "Error",
+        `Failed to refresh expenses! ${error.message}`,
+        "error"
+      );
     } finally {
       setRefreshing(false);
     }
@@ -105,29 +104,24 @@ const Details = () => {
   }, [fetchData]);
 
   // Memoized refresh control
-  const refreshControl = useMemo(() => (
-    <RefreshControl 
-      onRefresh={onRefresh} 
-      refreshing={refreshing}
-      tintColor="#fff"
-      titleColor="#fff"
-    />
-  ), [onRefresh, refreshing]);
+  const refreshControl = useMemo(
+    () => (
+      <RefreshControl
+        onRefresh={onRefresh}
+        refreshing={refreshing}
+        tintColor="#fff"
+        titleColor="#fff"
+      />
+    ),
+    [onRefresh, refreshing]
+  );
 
   return (
     <SafeAreaView className="flex-1 bg-pink-900 justify-center">
       <ScrollView refreshControl={refreshControl}>
         <View className="flex-1 px-6 items-center">
           <CategoryHeader title={title} />
-          
-          {error ? (
-            <Text className="text-red-400 font-pbold text-lg">{error}</Text>
-          ) : (
-            <ExpensesList 
-              expenses={expenses} 
-              formatDate={formatDate}
-            />
-          )}
+          <ExpensesList expenses={expenses} formatDate={formatDate} />
         </View>
       </ScrollView>
     </SafeAreaView>

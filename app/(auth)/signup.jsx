@@ -1,4 +1,4 @@
-import { Alert, Image, Text, View } from "react-native";
+import { Image, Text, View } from "react-native";
 import React, { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScrollView } from "react-native";
@@ -8,9 +8,11 @@ import CustomButton from "../../components/CustomButton";
 import { Link, router } from "expo-router";
 import { createUser } from "../../lib/APIs/UserApi.js";
 import { useGlobalContext } from "../../context/GlobalProvider.js";
+import useAlertContext from "@/context/AlertProvider";
 
 const SignUp = () => {
   const { checkAuth } = useGlobalContext();
+  const { showAlert } = useAlertContext();
   const [form, setForm] = useState({
     username: "",
     email: "",
@@ -20,8 +22,16 @@ const SignUp = () => {
   const [isSubmitting, setisSubmitting] = useState(false);
 
   const submit = async ({ email, password, username }) => {
-    if (email === "" || password === "" || username === "") {
-      Alert.alert("error", "Please fill in all the fields.");
+    if (username === "") {
+      showAlert("Error", "Username cannot be empty!", "error");
+      return;
+    }
+    if (email === "") {
+      showAlert("Error", "Email cannot be empty!", "error");
+      return;
+    }
+    if (password === "") {
+      showAlert("Error", "Password cannot be empty!", "error");
       return;
     }
 
@@ -31,7 +41,11 @@ const SignUp = () => {
       await checkAuth();
       router.replace("/(tabs)/home");
     } catch (error) {
-      Alert.alert("Signup Error", error.message);
+      showAlert(
+        "SignUp Error",
+        `Something went wrong! ${error.message}`,
+        "error"
+      );
     } finally {
       setisSubmitting(false);
     }
@@ -57,7 +71,7 @@ const SignUp = () => {
             handleChangeText={(text) => setForm({ ...form, username: text })}
             otherStyles="mt-7"
             placeholder="Enter your username"
-           textcolor="text-white"
+            textcolor="text-white"
             titlecolor="text-gray-100"
           />
           <FormFields
@@ -77,7 +91,7 @@ const SignUp = () => {
             handleChangeText={(text) => setForm({ ...form, password: text })}
             otherStyles="mt-7"
             placeholder="Enter your password"
-           textcolor="text-white"
+            textcolor="text-white"
             titlecolor="text-gray-100"
           />
           <CustomButton

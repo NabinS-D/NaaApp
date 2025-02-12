@@ -4,9 +4,7 @@ import {
   Text,
   TouchableOpacity,
   FlatList,
-  TextInput,
   RefreshControl,
-  Alert,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { router } from "expo-router";
@@ -20,6 +18,8 @@ import {
 import { addaCategory, fetchAllCategories } from "../lib/APIs/CategoryApi.js";
 import CustomButton from "./CustomButton.jsx";
 import FormFields from "./FormFields.jsx";
+import FancyAlert from "./CustomAlert.jsx";
+import useAlertContext from "@/context/AlertProvider.js";
 
 // Memoized Header Buttons Component
 const HeaderButtons = memo(({ onAddExpense, onAddCategory }) => (
@@ -207,8 +207,7 @@ const ExpenseTracker = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [newCategory, setNewCategory] = useState({ name: "" });
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
-
+  const { showAlert } = useAlertContext();
   // Memoized category totals calculation
   const categoryTotals = React.useMemo(() => {
     return expenses.reduce((acc, expense) => {
@@ -220,7 +219,6 @@ const ExpenseTracker = () => {
 
   const fetchData = useCallback(async () => {
     try {
-      setError(null);
       const [categoriesResponse, expensesResponse] = await Promise.all([
         fetchAllCategories(userdetails.$id),
         fetchAllExpenses(userdetails.$id),
@@ -228,8 +226,7 @@ const ExpenseTracker = () => {
       setCategories(categoriesResponse.documents);
       setExpenses(expensesResponse);
     } catch (error) {
-      setError("Failed to fetch data");
-      Alert.alert("Error", `Error fetching data! - ${error}`);
+      showAlert("Error", `Error fetching data! - ${error}`, "error");
     }
   }, [userdetails.$id]);
 
@@ -244,17 +241,18 @@ const ExpenseTracker = () => {
 
   const addCategory = useCallback(async () => {
     if (!newCategory.name.trim()) {
-      Alert.alert("Validation Error", "Please enter a category name.");
+      showAlert("Validation Error", "Category name cannot be empty.", "error");
       return;
     }
 
     try {
       await addaCategory(newCategory, userdetails.$id);
       setNewCategory({ name: "" });
+      showAlert("Success", "Category added successfully!");
       setCategoryModalVisible(false);
       fetchData();
     } catch (error) {
-      Alert.alert("Error", `Error adding category! - ${error.message}`);
+      showAlert("Error", `Failed to add category! ${error.message}`, "error");
     }
   }, [newCategory, userdetails.$id, fetchData]);
 
@@ -264,17 +262,22 @@ const ExpenseTracker = () => {
       !newExpense.description ||
       !newExpense.categoryId
     ) {
-      Alert.alert("Validation Error", "Please fill in all required fields.");
+      showAlert(
+        "Validation Error",
+        "Please fill in all required fields.",
+        "error"
+      );
       return;
     }
 
     try {
       await addExpenses(newExpense, userdetails.$id);
       setNewExpense({ amount: "", description: "", categoryId: "" });
+      showAlert("Success", "Expense added successfully!", "success");
       setExpenseModalVisible(false);
       fetchData();
     } catch (error) {
-      Alert.alert("Error", `Failed to add expense! ${error.message}`);
+      showAlert("Error", `Failed to add expense! ${error.message}`, "error");
     }
   }, [newExpense, userdetails.$id, fetchData]);
 
@@ -283,11 +286,12 @@ const ExpenseTracker = () => {
 
     try {
       await deleteExpenseById(selectedItem.$id);
+      showAlert("Success", "Expense deleted successfully!", "success");
+      setExpenseActionModalVisible(false);
       await fetchData();
     } catch (error) {
-      Alert.alert("Error", "Failed to delete expense");
+      showAlert("Error", "Failed to delete expense!", "error");
     } finally {
-      setExpenseActionModalVisible(false);
       setSelectedItem(null);
     }
   }, [selectedItem, fetchData]);
@@ -337,63 +341,67 @@ const ExpenseTracker = () => {
 
   return (
     <View className="flex-1 p-4">
-      {error ? (
-        <Text className="text-red-500 text-center">{error}</Text>
-      ) : (
-        <>
-          <FlatList
-            data={expenses}
-            renderItem={({ item }) => (
-              <ExpenseItem item={item} onLongPress={handleLongPress} />
-            )}
-            ListHeaderComponent={renderHeader}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      <FancyAlert
+        isVisible={alert?.visible}
+        onClose={() => showAlert((prev) => ({ ...prev, visible: false }))}
+        title={alert?.title}
+        message={alert?.message}
+        variant={alert?.type}
+        autoClose={true}
+        autoCloseTime={3000}
+      />
+
+      <FlatList
+        data={expenses}
+        renderItem={({ item }) => (
+          <ExpenseItem item={item} onLongPress={handleLongPress} />
+        )}
+        ListHeaderComponent={renderHeader}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        keyExtractor={(item) => item?.$id}
+      />
+
+      <AddExpenseModal
+        visible={isExpenseModalVisible}
+        onClose={() => setExpenseModalVisible(false)}
+        onAdd={addExpense}
+        categories={categories}
+        expense={newExpense}
+        setExpense={setNewExpense}
+      />
+
+      <CustomModal
+        modalVisible={isCategoryModalVisible}
+        onSecondaryPress={() => setCategoryModalVisible(false)}
+        title="Add Category"
+        primaryButtonText="Add"
+        secondaryButtonText="Cancel"
+        onPrimaryPress={addCategory}
+      >
+        <View className="w-full">
+          <FormFields
+            placeholder="Category Name"
+            value={newCategory.name}
+            inputfieldcolor="bg-gray-200"
+            textcolor="text-gray-800"
+            bordercolor="border-gray-400"
+            handleChangeText={(text) =>
+              setNewCategory({ ...newCategory, name: text })
             }
-            keyExtractor={(item) => item?.$id}
+            otherStyles="mb-4"
           />
+        </View>
+      </CustomModal>
 
-          <AddExpenseModal
-            visible={isExpenseModalVisible}
-            onClose={() => setExpenseModalVisible(false)}
-            onAdd={addExpense}
-            categories={categories}
-            expense={newExpense}
-            setExpense={setNewExpense}
-          />
-
-          <CustomModal
-            modalVisible={isCategoryModalVisible}
-            onSecondaryPress={() => setCategoryModalVisible(false)}
-            title="Add Category"
-            primaryButtonText="Add"
-            secondaryButtonText="Cancel"
-            onPrimaryPress={addCategory}
-          >
-            <View className="w-full">
-              <FormFields
-                placeholder="Category Name"
-                value={newCategory.name}
-                inputfieldcolor="bg-gray-200" // Light gray background
-                textcolor="text-gray-800" // Darker text
-                bordercolor="border-gray-400" // Gray border
-                handleChangeText={(text) =>
-                  setNewCategory({ ...newCategory, name: text })
-                }
-                otherStyles="mb-4"
-              />
-            </View>
-          </CustomModal>
-
-          <CustomModal
-            title="Are you sure you want to delete this entry?"
-            modalVisible={isExpenseActionModalVisible}
-            primaryButtonText="Delete"
-            onPrimaryPress={handleDelete}
-            onSecondaryPress={() => setExpenseActionModalVisible(false)}
-          />
-        </>
-      )}
+      <CustomModal
+        title="Are you sure you want to delete this entry?"
+        modalVisible={isExpenseActionModalVisible}
+        primaryButtonText="Delete"
+        onPrimaryPress={handleDelete}
+        onSecondaryPress={() => setExpenseActionModalVisible(false)}
+      />
     </View>
   );
 };

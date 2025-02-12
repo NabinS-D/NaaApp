@@ -1,4 +1,4 @@
-import { Alert, RefreshControl, ScrollView, Text, View } from "react-native";
+import { RefreshControl, ScrollView, Text, View } from "react-native";
 import React, { useEffect, useState, useCallback, memo, useMemo } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useGlobalContext } from "../../../context/GlobalProvider.js";
@@ -11,6 +11,7 @@ import {
   fetchAllCategories,
   handleEditCategory,
 } from "../../../lib/APIs/CategoryApi.js";
+import useAlertContext from "@/context/AlertProvider.js";
 
 // Memoized Header Component
 const Header = memo(() => (
@@ -109,6 +110,7 @@ const DeleteModal = memo(({ visible, onClose, onDelete }) => (
 
 const CategoryList = () => {
   const { userdetails } = useGlobalContext();
+  const { showAlert } = useAlertContext();
   const [categories, setCategories] = useState([]);
   const [isDeleteVisible, setIsDeleteVisible] = useState(false);
   const [isEditVisible, setIsEditVisible] = useState(false);
@@ -118,17 +120,14 @@ const CategoryList = () => {
   });
   const [currentCategoryId, setCurrentCategoryId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
 
   // Memoized fetch categories function
   const fetchCategories = useCallback(async () => {
     try {
-      setError(null);
       const result = await fetchAllCategories(userdetails.$id);
       setCategories(result.documents);
     } catch (error) {
-      console.error("Error fetching categories:", error);
-      setError("Failed to fetch categories");
+      showAlert("Error", "Failed to fetch categories", "error");
       setCategories([]);
     }
   }, [userdetails.$id]);
@@ -139,8 +138,7 @@ const CategoryList = () => {
     try {
       await fetchCategories();
     } catch (error) {
-      console.error("Refresh error:", error);
-      setError("Failed to refresh categories");
+      showAlert("Error", "Failed to refresh categories", "error");
     } finally {
       setRefreshing(false);
     }
@@ -158,29 +156,26 @@ const CategoryList = () => {
         });
       }
     } catch (error) {
-      console.error("Error fetching category data:", error);
-      setError("Failed to fetch category details");
+      showAlert("Error", "Failed to fetch category details", "error");
     }
   }, []);
 
   // Memoized edit submission handler
   const editCategory = useCallback(async () => {
     if (!newCategory.categoryname || newCategory.categoryname.trim() === "") {
-      Alert.alert("Error", "Category cannot be empty");
+      showAlert("Error", "Category cannot be empty", "error");
       return null;
     }
     try {
-      const response = await handleEditCategory(
+      await handleEditCategory(
         newCategory.categoryId,
         newCategory.categoryname
       );
-      if (response) {
-        await fetchCategories();
-        setIsEditVisible(false);
-      }
+      showAlert("Success", "Category updated successfully", "success");
+      setIsEditVisible(false);
+      await fetchCategories();
     } catch (error) {
-      console.error("Error updating category:", error);
-      setError("Failed to update category");
+      showAlert("Error", "Failed to update category", "error");
     }
   }, [newCategory, fetchCategories]);
 
@@ -190,12 +185,13 @@ const CategoryList = () => {
       try {
         const response = await deleteCategoryByID(categoryId);
         if (response) {
-          await fetchCategories();
+          showAlert("Success", "Category deleted successfully", "success");
           setIsDeleteVisible(false);
+          await fetchCategories();
+         
         }
       } catch (error) {
-        console.error("Error deleting category:", error);
-        setError("Failed to delete category");
+        showAlert("Error", "Failed to delete category!", "error");
       }
     },
     [fetchCategories]
@@ -225,11 +221,7 @@ const CategoryList = () => {
         <Header />
 
         <View className="px-4 mt-4">
-          {error ? (
-            <Text className="text-red-400 font-pbold text-lg text-center mt-4">
-              {error}
-            </Text>
-          ) : categories?.length > 0 ? (
+          {categories?.length > 0 ? (
             categories.map((category) => (
               <CategoryItem
                 key={category.$id}

@@ -1,4 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import {
   View,
   Text,
@@ -14,6 +20,7 @@ import { ID } from "react-native-appwrite";
 import { useGlobalContext } from "../context/GlobalProvider.js";
 import { config, databases } from "../lib/AIconfig.js";
 import { handleUserChatData } from "../lib/APIs/UserApi.js";
+import useAlertContext from "@/context/AlertProvider.js";
 
 // Separate message creation logic
 const createMessage = (text, sender, imageData = null) => ({
@@ -26,6 +33,7 @@ const createMessage = (text, sender, imageData = null) => ({
 
 const AIChat = () => {
   const { user, isLoggedIn } = useGlobalContext();
+  const { showAlert } = useAlertContext();
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState("");
   const [isLoadingChatHistory, setIsLoadingChatHistory] = useState(false);
@@ -48,7 +56,9 @@ const AIChat = () => {
         .flatMap((doc) => {
           const messages = [];
           if (doc.image_data) {
-            messages.push(createMessage("Here's your generated image", "ai", doc.image_data));
+            messages.push(
+              createMessage("Here's your generated image", "ai", doc.image_data)
+            );
           }
           if (doc.user_message) {
             messages.push(createMessage(doc.user_message, "user"));
@@ -59,8 +69,11 @@ const AIChat = () => {
 
       setMessages(formattedMessages);
     } catch (error) {
-      console.error("Error fetching chat history:", error);
-      Alert.alert("Error", "Could not load chat history.");
+      showAlert(
+        "Error",
+        `{Could not load chat history. ${error.message}`,
+        "error"
+      );
     } finally {
       setIsLoadingChatHistory(false);
     }
@@ -84,7 +97,11 @@ const AIChat = () => {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      showAlert(
+        "Error",
+        "Failed to generate image. Please try again.",
+        "error"
+      );
     }
 
     const blob = await response.blob();
@@ -97,32 +114,34 @@ const AIChat = () => {
   }, []);
 
   // Database operations
-  const saveToDatabase = useCallback(async (userMessage, imageData) => {
-    if (!isLoggedIn || !user) return;
+  const saveToDatabase = useCallback(
+    async (userMessage, imageData) => {
+      if (!isLoggedIn || !user) return;
 
-    try {
-      await databases.createDocument(
-        config.databaseId,
-        config.aiChatCollectionId,
-        ID.unique(),
-        {
-          user_message: userMessage,
-          image_data: imageData,
-          user_id: user.$id,
-          createdAt: new Date().toISOString(),
-        }
-      );
-    } catch (error) {
-      console.error("Database error:", error);
-      if (error.code === 401) {
-        Alert.alert(
-          "Session Expired",
-          "Please log in again to save your chat history."
+      try {
+        await databases.createDocument(
+          config.databaseId,
+          config.aiChatCollectionId,
+          ID.unique(),
+          {
+            user_message: userMessage,
+            image_data: imageData,
+            user_id: user.$id,
+            createdAt: new Date().toISOString(),
+          }
         );
+      } catch (error) {
+        showAlert("Database error:", error.message, "error");
+        if (error.code === 401) {
+          showAlert(
+            "Session Expired",
+            "Please log in again to save your chat history."
+          );
+        }
       }
-      throw error;
-    }
-  }, [isLoggedIn, user]);
+    },
+    [isLoggedIn, user]
+  );
 
   // Message handling
   const handleSendMessage = useCallback(async () => {
@@ -148,46 +167,54 @@ const AIChat = () => {
       setIsLoading(true);
       await saveToDatabase(trimmedInput, base64Image);
     } catch (error) {
-      console.error("Error in sendMessage:", error);
       const errorMessage = createMessage(
         "Sorry, I encountered an error generating your image. Please try again.",
         "ai"
       );
       setMessages((prev) => [...prev, errorMessage]);
-      Alert.alert("Error", "Failed to generate image. Please try again.");
+      showAlert(
+        "Error",
+        "Failed to generate image. Please try again.",
+        "error"
+      );
     } finally {
       setIsLoading(false);
     }
   }, [inputText, isLoading, generateImage, saveToDatabase]);
 
   // UI Components
-  const MessageItem = useMemo(() => ({ item }) => (
-    <View
-      className={`max-w-[80%] my-1 p-3 rounded-xl ${
-        item.sender === "user"
-          ? "self-end bg-blue-500 rounded-br-sm"
-          : "self-start bg-gray-200 rounded-bl-sm"
-      }`}
-    >
-      <Text
-        className={`text-base ${
-          item.sender === "user" ? "text-white" : "text-black"
-        }`}
-      >
-        {item.text}
-      </Text>
-      {item.imageData && (
-        <Image
-          source={{ uri: item.imageData }}
-          className="w-48 h-48 mt-3 rounded-xl"
-          resizeMode="contain"
-        />
-      )}
-      <Text className="text-xs text-gray-600 mt-1 self-end">
-        {new Date(item.timestamp).toLocaleTimeString()}
-      </Text>
-    </View>
-  ), []);
+  const MessageItem = useMemo(
+    () =>
+      ({ item }) =>
+        (
+          <View
+            className={`max-w-[80%] my-1 p-3 rounded-xl ${
+              item.sender === "user"
+                ? "self-end bg-blue-500 rounded-br-sm"
+                : "self-start bg-gray-200 rounded-bl-sm"
+            }`}
+          >
+            <Text
+              className={`text-base ${
+                item.sender === "user" ? "text-white" : "text-black"
+              }`}
+            >
+              {item.text}
+            </Text>
+            {item.imageData && (
+              <Image
+                source={{ uri: item.imageData }}
+                className="w-48 h-48 mt-3 rounded-xl"
+                resizeMode="contain"
+              />
+            )}
+            <Text className="text-xs text-gray-600 mt-1 self-end">
+              {new Date(item.timestamp).toLocaleTimeString()}
+            </Text>
+          </View>
+        ),
+    []
+  );
 
   if (isLoadingChatHistory) {
     return (

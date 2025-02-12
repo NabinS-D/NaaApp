@@ -1,6 +1,6 @@
 import { useContext, createContext, useState, useEffect } from "react";
 import { getCurrentUser } from "../lib/APIs/UserApi";
-import { router } from "expo-router";
+import useAlertContext from "./AlertProvider";
 
 const GlobalContext = createContext();
 
@@ -12,7 +12,7 @@ const GlobalProvider = ({ children }) => {
   const [userdetails, setuserdetails] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const [error, setError] = useState(null);
+  const { showAlert } = useAlertContext();
 
   const checkAuth = async () => {
     try {
@@ -30,7 +30,7 @@ const GlobalProvider = ({ children }) => {
       setUser(null);
       setuserdetails(null);
       setIsLoggedIn(false);
-      setError(error.message); // Store the error message
+      showAlert("Error", error.message, "error");
     } finally {
       setIsLoading(false);
     }

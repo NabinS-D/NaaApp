@@ -6,12 +6,13 @@ import { images } from "../../constants";
 import FormFields from "../../components/FormFields";
 import CustomButton from "../../components/CustomButton";
 import { Link, router } from "expo-router";
-import { Alert } from "react-native";
 import { signIn } from "../../lib/APIs/UserApi.js";
 import { useGlobalContext } from "../../context/GlobalProvider.js";
+import useAlertContext from "@/context/AlertProvider";
 
 const SignIn = () => {
   const { checkAuth } = useGlobalContext();
+  const { showAlert } = useAlertContext();
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -20,8 +21,12 @@ const SignIn = () => {
   const [isSubmitting, setisSubmitting] = useState(false);
 
   const submit = async ({ email, password }) => {
-    if (email === "" || password === "") {
-      Alert.alert("Error", "Please fill in all the fields.");
+    if (email === "") {
+      showAlert("Error", "Email cannot be empty!", "error");
+      return;
+    }
+    if (password === "") {
+      showAlert("Error", "Password cannot be empty!", "error");
       return;
     }
 
@@ -32,7 +37,11 @@ const SignIn = () => {
       await checkAuth(); // Wait for context to update
       router.replace("/(tabs)/home");
     } catch (error) {
-      Alert.alert("SignIn Error", error.message);
+      showAlert(
+        "SignIn Error",
+        `Something went wrong! ${error.message}`,
+        "error"
+      );
     } finally {
       setisSubmitting(false);
     }
@@ -70,9 +79,8 @@ const SignIn = () => {
             handleChangeText={(text) => setForm({ ...form, password: text })}
             otherStyles="mt-7"
             placeholder="Enter your password"
-           textcolor="text-white"
+            textcolor="text-white"
             titlecolor="text-gray-100"
-
           />
           <CustomButton
             title="Sign-In"
