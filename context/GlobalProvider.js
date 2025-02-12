@@ -1,6 +1,5 @@
 import { useContext, createContext, useState, useEffect } from "react";
 import { getCurrentUser } from "../lib/APIs/UserApi";
-import useAlertContext from "./AlertProvider";
 
 const GlobalContext = createContext();
 
@@ -11,8 +10,6 @@ const GlobalProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [userdetails, setuserdetails] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  const { showAlert } = useAlertContext();
 
   const checkAuth = async () => {
     try {
@@ -30,7 +27,6 @@ const GlobalProvider = ({ children }) => {
       setUser(null);
       setuserdetails(null);
       setIsLoggedIn(false);
-      showAlert("Error", error.message, "error");
     } finally {
       setIsLoading(false);
     }
