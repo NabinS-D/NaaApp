@@ -18,28 +18,36 @@ import {
   fetchAllExpenses,
 } from "../lib/APIs/ExpenseApi.js";
 import { addaCategory, fetchAllCategories } from "../lib/APIs/CategoryApi.js";
+import CustomButton from "./CustomButton.jsx";
+import FormFields from "./FormFields.jsx";
 
 // Memoized Header Buttons Component
 const HeaderButtons = memo(({ onAddExpense, onAddCategory }) => (
   <View className="flex-row justify-evenly">
-    <TouchableOpacity
-      onPress={onAddExpense}
-      className="bg-blue-500 px-4 py-2 rounded-lg"
-    >
-      <Text className="text-white">Add Expense</Text>
-    </TouchableOpacity>
-    <TouchableOpacity
-      onPress={onAddCategory}
-      className="bg-green-500 px-4 py-2 rounded-lg"
-    >
-      <Text className="text-white">Add Category</Text>
-    </TouchableOpacity>
-    <TouchableOpacity
-      onPress={() => router.push({ pathname: "categoryList" })}
-      className="bg-orange-500 px-4 py-2 rounded-lg"
-    >
-      <Text className="text-white">List Categories</Text>
-    </TouchableOpacity>
+    <CustomButton
+      title="Add Expense"
+      handlePress={onAddExpense}
+      fullWidth={false}
+      containerStyles="px-4 py-2 rounded-lg w-[100px]"
+      buttoncolor="bg-blue-500"
+      textStyles="text-white"
+    />
+    <CustomButton
+      title="Add Category"
+      handlePress={onAddCategory}
+      fullWidth={false}
+      containerStyles="px-4 py-2 rounded-lg w-[100px]"
+      buttoncolor="bg-green-500"
+      textStyles="text-white"
+    />
+    <CustomButton
+      title="List Categories"
+      handlePress={() => router.push({ pathname: "categoryList" })}
+      fullWidth={false}
+      containerStyles="px-4 py-2 rounded-lg w-[100px]"
+      buttoncolor="bg-orange-500"
+      textStyles="text-white"
+    />
   </View>
 ));
 
@@ -131,26 +139,41 @@ const AddExpenseModal = memo(
       onPrimaryPress={onAdd}
     >
       <View className="w-full">
-        <TextInput
-          className="border border-gray-300 rounded-lg p-2 mb-2 w-full"
+        <FormFields
           placeholder="Amount"
-          keyboardType="numeric"
           value={expense.amount}
-          onChangeText={(text) => setExpense({ ...expense, amount: text })}
+          inputfieldcolor="bg-gray-200" // Light gray background
+          textcolor="text-gray-800" // Darker text
+          bordercolor="border-gray-400" // Gray border
+          handleChangeText={(text) => setExpense({ ...expense, amount: text })}
+          otherStyles="mb-4"
         />
-        <TextInput
-          className="border border-gray-300 rounded-lg p-2 mb-2 w-full"
+
+        <FormFields
           placeholder="Description"
           value={expense.description}
-          onChangeText={(text) => setExpense({ ...expense, description: text })}
+          inputfieldcolor="bg-gray-200" // Light gray background
+          textcolor="text-gray-800" // Darker text
+          bordercolor="border-gray-400" // Gray border
+          handleChangeText={(text) =>
+            setExpense({ ...expense, description: text })
+          }
+          otherStyles="mb-4"
         />
-        <View className="border border-gray-300 rounded-lg overflow-hidden mb-4 w-full">
+
+        <View
+          className={`border rounded-2xl overflow-hidden mb-4 w-full border-gray-400`}
+        >
           <Picker
+            useNativeAndroidPickerStyle={false}
             selectedValue={expense.categoryId}
             onValueChange={(itemValue) =>
               setExpense({ ...expense, categoryId: itemValue })
             }
-            style={{ backgroundColor: "white" }}
+            style={{
+              backgroundColor: "#E5E7EB",
+              color: "gray-800",
+            }}
             mode="dropdown"
           >
             <Picker.Item label="Select Category" value="" />
@@ -348,13 +371,16 @@ const ExpenseTracker = () => {
             onPrimaryPress={addCategory}
           >
             <View className="w-full">
-              <TextInput
-                className="border border-gray-300 rounded-lg p-2 mb-4"
+              <FormFields
                 placeholder="Category Name"
                 value={newCategory.name}
-                onChangeText={(text) =>
+                inputfieldcolor="bg-gray-200" // Light gray background
+                textcolor="text-gray-800" // Darker text
+                bordercolor="border-gray-400" // Gray border
+                handleChangeText={(text) =>
                   setNewCategory({ ...newCategory, name: text })
                 }
+                otherStyles="mb-4"
               />
             </View>
           </CustomModal>

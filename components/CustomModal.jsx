@@ -42,7 +42,11 @@ const CustomModal = ({
         {/* Modal Content */}
         <View style={styles.modalContainer}>
           <View style={styles.modalView}>
-            {title && <Text style={styles.modalText}>{title}</Text>}
+            {title && (
+              <Text className="font-psemibold text-center mb-4 text-xl">
+                {title}
+              </Text>
+            )}
             {children}
 
             <View style={styles.buttonContainer}>
@@ -59,7 +63,7 @@ const CustomModal = ({
                 {loading ? (
                   <ActivityIndicator size="small" color="#ffffff" />
                 ) : (
-                  <Text style={styles.primaryButtonText}>
+                  <Text className="text-white font-psemibold text-base items-center justify-center">
                     {primaryButtonText}
                   </Text>
                 )}
@@ -71,7 +75,7 @@ const CustomModal = ({
                 activeOpacity={0.7}
                 disabled={loading}
               >
-                <Text style={styles.secondaryButtonText}>
+                <Text className="text-black font-psemibold text-base items-center justify-center">
                   {secondaryButtonText}
                 </Text>
               </TouchableOpacity>
@@ -113,12 +117,6 @@ const styles = StyleSheet.create({
     elevation: 5,
     width: "80%",
   },
-  modalText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 15,
-    textAlign: "center",
-  },
   buttonContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -140,16 +138,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#f8f8f8",
     borderWidth: 1,
     borderColor: "#dee2e6",
-  },
-  primaryButtonText: {
-    color: "white",
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-  secondaryButtonText: {
-    color: "#212529",
-    fontWeight: "bold",
-    textAlign: "center",
   },
   disabledButton: {
     backgroundColor: "#A9A9A9", // Gray out button when disabled
