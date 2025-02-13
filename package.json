@@ -28,7 +28,8 @@
           "@emotion/styled",
           "appwrite",
           "react-native-appwrite",
-          "tailwindcss"
+          "tailwindcss",
+          "lucide-react-native"
         ]
       }
     },
