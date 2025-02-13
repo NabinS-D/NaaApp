@@ -12,30 +12,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { images } from "../constants";
 import CustomButton from "../components/CustomButton";
 import { useGlobalContext } from "../context/GlobalProvider";
-import React, { useEffect } from "react";
-import * as Updates from "expo-updates";
-
-// Function to check and apply updates
-async function checkForUpdates() {
-  if (!__DEV__) {
-    try {
-      const update = await Updates.checkForUpdateAsync();
-      if (update.isAvailable) {
-        await Updates.fetchUpdateAsync();
-        Alert.alert("Update Available", "Restarting app to apply updates...");
-        await Updates.reloadAsync();
-      }
-    } catch (error) {
-      console.log(`Error checking updates: ${error}`);
-    }
-  }
-}
+import React from "react";
 
 export default function App() {
-  useEffect(() => {
-    checkForUpdates();
-  }, []);
-
   const { isLoggedIn, isLoading } = useGlobalContext();
 
   if (isLoading) {
