@@ -1,4 +1,4 @@
-import React, { useState, useCallback, memo, useMemo } from "react";
+import React, { useState, useCallback, memo, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -115,6 +115,13 @@ export default function Profile() {
     useState(false);
   const [userPasswords, setuserPasswords] = useState({ old: "", new: "" });
   const [passwordChangeIsLoading, setPasswordChangeIsLoading] = useState(false);
+  const [localAvatar, setLocalAvatar] = useState(userdetails?.avatar);
+
+  useEffect(() => {
+    if (userdetails?.avatar) {
+      setLocalAvatar(userdetails.avatar);
+    }
+  }, [userdetails?.avatar]);
 
   // Loading state check
   if (!user || !userdetails) {
@@ -152,16 +159,23 @@ export default function Profile() {
   const togglePasswordChangeModal = useCallback(() => {
     setPasswordChangeModalVisible((prev) => !prev);
   }, []);
+
   const handleProfilePictureUpload = useCallback(
     async (result) => {
       setIsUploading(true);
       try {
         const fileUrl = await uploadUserProfilePicture(userdetails, result);
+        // Update local avatar state first
+        setLocalAvatar(fileUrl);
+
+        // Then update global state
         setuserdetails((prev) => ({
           ...prev,
           avatar: fileUrl,
         }));
         showAlert("Success", "Profile picture uploaded successfully!");
+        setIsUploading(false);
+        await checkAuth();
       } catch (error) {
         showAlert(
           "Error",
@@ -170,6 +184,7 @@ export default function Profile() {
         );
       } finally {
         setIsUploading(false);
+        setModalVisible(false); // Close modal after upload
       }
     },
     [userdetails, setuserdetails]
@@ -294,13 +309,13 @@ export default function Profile() {
         <View style={containerStyle}>
           {showImagePreview && (
             <ImagePreview
-              uri={userdetails?.avatar}
+              uri={localAvatar}
               onClose={() => setShowImagePreview(false)}
             />
           )}
 
           <ProfileImage
-            uri={userdetails?.avatar}
+            uri={localAvatar}
             isUploading={isUploading}
             onPress={toggleModal}
           />

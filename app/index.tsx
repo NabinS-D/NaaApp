@@ -12,36 +12,74 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { images } from "../constants";
 import CustomButton from "../components/CustomButton";
 import { useGlobalContext } from "../context/GlobalProvider";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import * as Updates from "expo-updates";
-
-// Function to check and apply updates
-async function checkForUpdates() {
-  if (!__DEV__) {
-    try {
-      const update = await Updates.checkForUpdateAsync();
-      if (update.isAvailable) {
-        await Updates.fetchUpdateAsync();
-        Alert.alert("Update Available", "Restarting app to apply updates...");
-        await Updates.reloadAsync();
-      }
-    } catch (error) {
-      console.log(`Error checking updates: ${error}`);
-    }
-  }
-}
+import NetInfo from "@react-native-community/netinfo";
 
 export default function App() {
+  const [isChecking, setIsChecking] = useState(false);
+  const { isLoggedIn, isLoading } = useGlobalContext();
+
+  const checkForUpdates = async () => {
+    if (!__DEV__) {
+      try {
+        // Check network connectivity first
+        const netInfo = await NetInfo.fetch();
+
+        if (!netInfo.isConnected) {
+          console.log("No internet connection");
+          return;
+        }
+
+        // Check if update is available
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          Alert.alert(
+            "Update Available",
+            "A new version is available. Would you like to update now?",
+            [
+              {
+                text: "Later",
+                style: "cancel",
+              },
+              {
+                text: "Update",
+                onPress: async () => {
+                  try {
+                    setIsChecking(true);
+                    await Updates.fetchUpdateAsync();
+                    await Updates.reloadAsync();
+                  } catch (error) {
+                    setIsChecking(false);
+                    Alert.alert(
+                      "Error",
+                      "Failed to apply update. Please try again later."
+                    );
+                  }
+                },
+              },
+            ]
+          );
+        }
+      } catch (error) {
+        console.log(`Error checking updates: ${error}`);
+      }
+    }
+  };
+
   useEffect(() => {
     checkForUpdates();
   }, []);
-  const { isLoggedIn, isLoading } = useGlobalContext();
 
-  if (isLoading) {
+  // Show loading state for both update checking and app loading
+  if (isLoading || isChecking) {
     return (
       <SafeAreaView style={{ backgroundColor: "#7C1F4E", height: "100%" }}>
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#00ff00" />
+          {isChecking && (
+            <Text className="text-white mt-2">Applying update...</Text>
+          )}
         </View>
       </SafeAreaView>
     );
