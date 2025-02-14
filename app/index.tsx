@@ -70,6 +70,12 @@ export default function App() {
         // Check network connectivity
         const netInfo = await NetInfo.fetch();
         if (!netInfo.isConnected) {
+          // Silently fail if no connection on startup
+          if (!showNoUpdateAlert) {
+            setIsChecking(false);
+            return;
+          }
+          // Only show alert if user manually checked for updates
           Alert.alert(
             "No Connection",
             "Please check your internet connection and try again."
@@ -100,6 +106,7 @@ export default function App() {
           );
         } else {
           setIsChecking(false);
+          // Only show "Up to Date" alert if user manually checked
           if (showNoUpdateAlert) {
             Alert.alert("Up to Date", "You're using the latest version!");
           }
@@ -107,10 +114,13 @@ export default function App() {
       } catch (error) {
         setIsChecking(false);
         console.error("Error checking for updates:", error);
-        Alert.alert(
-          "Error",
-          "Unable to check for updates. Please try again later."
-        );
+        // Only show error alert if user manually checked for updates
+        if (showNoUpdateAlert) {
+          Alert.alert(
+            "Error",
+            "Unable to check for updates. Please try again later."
+          );
+        }
       }
     },
     [handleUpdate]
