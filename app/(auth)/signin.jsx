@@ -102,6 +102,18 @@ const SignIn = () => {
             </Text>
           </View>
         </View>
+        <View className="px-4">
+          <CustomButton
+            fullWidth={true}
+            title="Go to Homescreen"
+            containerStyles="mb-2"
+            handlePress={() => {
+              router.replace("/");
+            }}
+            buttoncolor="bg-blue-500"
+            textStyles="text-white"
+          />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

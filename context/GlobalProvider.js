@@ -1,5 +1,6 @@
 import { useContext, createContext, useState, useEffect } from "react";
 import { getCurrentUser } from "../lib/APIs/UserApi";
+import { router } from "expo-router";
 
 const GlobalContext = createContext();
 
@@ -22,6 +23,7 @@ const GlobalProvider = ({ children }) => {
         setUser(null);
         setuserdetails(null);
         setIsLoggedIn(false);
+        router.replace("/");
       }
     } catch (error) {
       setUser(null);
