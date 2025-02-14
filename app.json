@@ -47,13 +47,10 @@
         "origin": false
       },
       "eas": {
-        "projectId": "0839dc09-2c31-4d96-bcaa-48cb1646903f"
+        "projectId": "30398792-d340-47fc-ae74-04ea60dcba96"
       }
     },
-    "owner": "naabins",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "owner": "naabs",
     "updates": {
       "url": "https://u.expo.dev/0839dc09-2c31-4d96-bcaa-48cb1646903f"
     }
