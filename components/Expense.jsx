@@ -246,12 +246,15 @@ const ExpenseTracker = () => {
     }
 
     try {
+      console.log("Adding category:", newCategory);
       await addaCategory(newCategory, userdetails.$id);
+      console.log("Category added successfully");
       setNewCategory({ name: "" });
       showAlert("Success", "Category added successfully!");
       setCategoryModalVisible(false);
       fetchData();
     } catch (error) {
+      console.error("Error adding category:", error);
       showAlert("Error", `Failed to add category! ${error.message}`, "error");
     }
   }, [newCategory, userdetails.$id, fetchData]);
@@ -383,7 +386,7 @@ const ExpenseTracker = () => {
         <View className="w-full">
           <FormFields
             placeholder="Category Name"
-            value={newCategory.name}
+            value={newCategory.name || ""}
             inputfieldcolor="bg-gray-200"
             textcolor="text-gray-800"
             bordercolor="border-gray-400"
