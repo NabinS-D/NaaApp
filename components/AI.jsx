@@ -208,7 +208,7 @@ const AIChat = () => {
                 resizeMode="contain"
               />
             )}
-            <Text className="text-xs text-gray-600 mt-1 self-end">
+            <Text className="text-xs text-black mt-1 self-end">
               {new Date(item.timestamp).toLocaleTimeString()}
             </Text>
           </View>
