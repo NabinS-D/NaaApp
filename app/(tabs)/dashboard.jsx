@@ -7,7 +7,6 @@ import {
   Image,
   ActivityIndicator,
   RefreshControl,
-  Alert,
 } from "react-native";
 import { useGlobalContext } from "../../context/GlobalProvider";
 import { handleUserChatData } from "../../lib/APIs/UserApi.js";

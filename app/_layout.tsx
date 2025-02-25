@@ -29,7 +29,7 @@ const RootLayout = () => {
   return (
     <AlertProvider>
       <GlobalProvider>
-        <StatusBar style="dark" />
+        <StatusBar style="light" backgroundColor="#7C1F4E" />
         <Stack
           screenOptions={{
             headerStyle: {
@@ -60,7 +60,6 @@ const RootLayout = () => {
             name="index"
             options={{
               headerShown: false,
-              // This helps with the initial navigation flow
               presentation: "containedModal",
             }}
           />
