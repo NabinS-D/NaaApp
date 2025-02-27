@@ -5,7 +5,6 @@ import {
   Text,
   View,
   Alert,
-  Platform,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Redirect, router } from "expo-router";
@@ -16,13 +15,65 @@ import { useGlobalContext } from "../context/GlobalProvider";
 import React, { useEffect, useState, useCallback } from "react";
 import * as Updates from "expo-updates";
 import NetInfo from "@react-native-community/netinfo";
+import { LogLevel, OneSignal } from "react-native-onesignal";
 
 export default function App() {
-  // State management
   const [isChecking, setIsChecking] = useState(false);
   const [updateProgress, setUpdateProgress] = useState(0);
   const [updateAvailable, setUpdateAvailable] = useState(false);
-  const { isLoggedIn, isLoading } = useGlobalContext();
+  const { isLoggedIn, isLoading, userdetails } = useGlobalContext();
+
+  useEffect(() => {
+    // Define handlers first so they can be referenced in both addEventListener and removeEventListener
+    const handleNotificationClick = (event: any) => {
+      // Navigate to the chat screen
+      router.push("/(tabs)/chat");
+    };
+
+    const handleNotificationReceived = (event: {
+      notification: { display: () => void };
+    }) => {
+      // Allow notification to show even when app is in foreground
+      event.notification.display();
+    };
+
+    // Initialize OneSignal
+    OneSignal.Debug.setLogLevel(LogLevel.Verbose);
+    const oneSignalAppId = process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID;
+
+    if (oneSignalAppId) {
+      OneSignal.initialize(oneSignalAppId);
+
+      // Request notification permissions
+      OneSignal.Notifications.requestPermission(true);
+
+      // Handle notification opened
+      OneSignal.Notifications.addEventListener(
+        "click",
+        handleNotificationClick
+      );
+
+      // Handle notification received in foreground
+      OneSignal.Notifications.addEventListener(
+        "foregroundWillDisplay",
+        handleNotificationReceived
+      );
+    } else {
+      console.error("OneSignal App ID is not defined");
+    }
+
+    return () => {
+      // Clean up event listeners
+      OneSignal.Notifications.removeEventListener(
+        "click",
+        handleNotificationClick
+      );
+      OneSignal.Notifications.removeEventListener(
+        "foregroundWillDisplay",
+        handleNotificationReceived
+      );
+    };
+  }, []);
 
   // Function to handle the update process
   const handleUpdate = useCallback(async () => {

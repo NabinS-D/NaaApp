@@ -21,6 +21,7 @@ import {
 } from "firebase/database";
 import { useGlobalContext } from "@/context/GlobalProvider";
 import { Ionicons } from "@expo/vector-icons";
+import { OneSignal } from "react-native-onesignal";
 
 export default function GroupChat() {
   const [messages, setMessages] = useState([]);
@@ -94,11 +95,33 @@ export default function GroupChat() {
             id,
             ...msg,
           }));
-          // Sort by timestamp in descending order (newest first)
-          setMessages(messageList.sort((a, b) => b.timestamp - a.timestamp));
+
+          // Sort messages by timestamp (newest first)
+          const sortedMessages = messageList.sort(
+            (a, b) => b.timestamp - a.timestamp
+          );
+
+          // Check if there are new messages
+          if (messages.length > 0 && sortedMessages.length > messages.length) {
+            // Get the newest message
+            const newestMessage = sortedMessages[0];
+
+            // Only show notifications for messages from other users
+            if (newestMessage.userId !== userdetails?.id) {
+              // This will work when app is in background but not fully closed
+              OneSignal.Notifications({
+                contents: { en: newestMessage.text },
+                headings: { en: newestMessage.username },
+                buttons: [{ id: "open_chat", text: "Open Chat" }],
+              });
+            }
+          }
+
+          setMessages(sortedMessages);
         } else {
           setMessages([]);
         }
+
         // Clear loading states
         setInitialLoading(false);
         setLoadingMore(false);
@@ -112,18 +135,41 @@ export default function GroupChat() {
 
     // Cleanup function
     return () => unsubscribe();
-  }, [currentPage, pageSize]);
+  }, [currentPage, pageSize, messages, userdetails]);
 
-  const sendMessage = () => {
+  // In your sendMessage function
+  const sendMessage = async () => {
     if (newMessage.trim()) {
-      const messagesRef = ref(database, "messages");
-      push(messagesRef, {
-        text: newMessage,
-        username: username,
-        timestamp: Date.now(),
-        userId: userdetails?.id || "anonymous",
-      });
-      setNewMessage("");
+      try {
+        // First save to Firebase
+        const messagesRef = ref(database, "messages");
+        push(messagesRef, {
+          text: newMessage,
+          username: username,
+          timestamp: Date.now(),
+          userId: userdetails?.id || "anonymous",
+        });
+
+        // Then send notification via your server
+        await fetch(
+          "https://notification-server-for-sending-message.onrender.com/api/send-chat-notification",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              message: newMessage,
+              username: username,
+              senderUserId: userdetails?.id || "anonymous",
+            }),
+          }
+        );
+
+        setNewMessage("");
+      } catch (error) {
+        console.error("Error:", error);
+      }
     }
   };
 
