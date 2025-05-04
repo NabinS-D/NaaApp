@@ -28,6 +28,12 @@
       "favicon": "./assets/images/naal.png"
     },
     "plugins": [
+      [
+        "onesignal-expo-plugin",
+        {
+          "mode": "development"
+        }
+      ],
       "expo-router",
       [
         "expo-splash-screen",
@@ -36,12 +42,6 @@
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
-        }
-      ],
-      [
-        "onesignal-expo-plugin",
-        {
-          "mode": "production"
         }
       ]
     ],

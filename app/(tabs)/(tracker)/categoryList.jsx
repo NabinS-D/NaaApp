@@ -12,6 +12,7 @@ import {
   handleEditCategory,
 } from "../../../lib/APIs/CategoryApi.js";
 import useAlertContext from "@/context/AlertProvider.js";
+import { ActivityIndicator } from "react-native";
 
 // Memoized Header Component
 const Header = memo(() => (
@@ -120,15 +121,19 @@ const CategoryList = () => {
   });
   const [currentCategoryId, setCurrentCategoryId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   // Memoized fetch categories function
   const fetchCategories = useCallback(async () => {
     try {
+      setLoading(true);
       const result = await fetchAllCategories(userdetails.$id);
       setCategories(result.documents);
     } catch (error) {
       showAlert("Error", "Failed to fetch categories", "error");
       setCategories([]);
+    }finally{
+      setLoading(false);
     }
   }, [userdetails.$id]);
 
@@ -217,7 +222,12 @@ const CategoryList = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-pink-900">
-      <ScrollView className="flex-1" refreshControl={refreshControl}>
+      {loading ? (
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color="#5C94C8" />
+        </View>
+      ) : (
+        <ScrollView className="flex-1" refreshControl={refreshControl}>
         <Header />
 
         <View className="px-4 mt-4">
@@ -254,6 +264,7 @@ const CategoryList = () => {
           onDelete={() => handleDelete(currentCategoryId)}
         />
       </ScrollView>
+      )}
     </SafeAreaView>
   );
 };

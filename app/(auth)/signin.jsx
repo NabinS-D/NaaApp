@@ -35,7 +35,7 @@ const SignIn = () => {
     try {
       await signIn(email, password);
       await checkAuth(); // Wait for context to update
-      router.replace("/(tabs)/home");
+      router.replace("/(tabs)/dashboard");
     } catch (error) {
       showAlert(
         "SignIn Error",

@@ -1,4 +1,4 @@
-import { Text, View } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 import React, { useEffect, useState, useCallback, memo, useMemo } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
@@ -57,6 +57,7 @@ const Details = () => {
 
   const [expenses, setExpenses] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(false);
   const { showAlert } = useAlertContext();
 
   // Memoized date formatter
@@ -75,10 +76,13 @@ const Details = () => {
   // Memoized fetch function
   const fetchData = useCallback(async () => {
     try {
+      setLoading(true);
       const result = await expensesOfCategory(categoryId);
       setExpenses(result);
     } catch (error) {
       showAlert("Error", `Failed to fetch expenses! ${error.message}`, "error");
+    } finally {
+      setLoading(false);
     }
   }, [categoryId]);
 
@@ -118,12 +122,18 @@ const Details = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-pink-900 justify-center">
-      <ScrollView refreshControl={refreshControl}>
-        <View className="flex-1 px-6 items-center">
-          <CategoryHeader title={title} />
-          <ExpensesList expenses={expenses} formatDate={formatDate} />
+      {loading ? (
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color="#5C94C8" />
         </View>
-      </ScrollView>
+      ) : (
+        <ScrollView refreshControl={refreshControl}>
+          <View className="flex-1 px-6 items-center">
+            <CategoryHeader title={title} />
+            <ExpensesList expenses={expenses} formatDate={formatDate} />
+          </View>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 };

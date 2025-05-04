@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, memo } from "react";
+import React, { useState, useEffect, useCallback, memo, useMemo } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
   View,
@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   FlatList,
   RefreshControl,
+  ActivityIndicator,
+  TextInput,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { router } from "expo-router";
@@ -196,6 +198,17 @@ const AddExpenseModal = memo(
             ))}
           </Picker>
         </View>
+
+        <FormFields
+          placeholder="Date"
+          value={expense.date || new Date().toISOString().split("T")[0]} // Default to today
+          inputfieldcolor="bg-gray-200" // Light gray background
+          textcolor="text-gray-800" // Darker text
+          bordercolor="border-gray-400" // Gray border
+          handleChangeText={(text) => setExpense({ ...expense, date: text })}
+          otherStyles="mb-4"
+          inputProps={{ type: "date" }} // HTML5 date picker
+        />
       </View>
     </CustomModal>
   )
@@ -211,6 +224,7 @@ const ExpenseTracker = () => {
     amount: "",
     description: "",
     categoryId: "",
+    date: new Date().toISOString().split("T")[0], // Default to today
   });
   const [isExpenseActionModalVisible, setExpenseActionModalVisible] =
     useState(false);
@@ -223,6 +237,8 @@ const ExpenseTracker = () => {
   const [selectAll, setSelectAll] = useState(false);
   const [deleteAll, setDeleteAll] = useState(false);
   const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Memoized category totals calculation
   const categoryTotals = React.useMemo(() => {
@@ -233,8 +249,32 @@ const ExpenseTracker = () => {
     }, {});
   }, [expenses]);
 
+  const TotalExpenseForMonth = useMemo(() => {
+    const currentMonth = new Date().getMonth();
+    return expenses.reduce((acc, expense) => {
+      const expenseDate = new Date(expense.createdAt);
+      if (expenseDate.getMonth() === currentMonth) {
+        return acc + parseFloat(expense.amount);
+      }
+      return acc;
+    }, 0);
+  }, [expenses]);
+  
+const categoryTotalsForMonth = useMemo(() => {
+    const currentMonth = new Date().getMonth();
+    return expenses.reduce((acc, expense) => {
+      const expenseDate = new Date(expense.createdAt);
+      if (expenseDate.getMonth() === currentMonth) {
+        const category_name = expense.category?.category_name;
+        acc[category_name] = (acc[category_name] || 0) + parseFloat(expense.amount);
+      }
+      return acc;
+    }, {});
+  }, [expenses]); 
+
   const fetchData = useCallback(async () => {
     try {
+      setIsLoading(true);
       const [categoriesResponse, expensesResponse] = await Promise.all([
         fetchAllCategories(userdetails.$id),
         fetchAllExpenses(userdetails.$id),
@@ -243,13 +283,20 @@ const ExpenseTracker = () => {
       setExpenses(expensesResponse);
     } catch (error) {
       showAlert("Error", `Error fetching data! - ${error}`, "error");
+    } finally {
+      setIsLoading(false);
     }
   }, [userdetails.$id, showAlert]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await fetchData();
+      const [categoriesResponse, expensesResponse] = await Promise.all([
+        fetchAllCategories(userdetails.$id),
+        fetchAllExpenses(userdetails.$id),
+      ]);
+      setCategories(categoriesResponse.documents);
+      setExpenses(expensesResponse);
     } finally {
       setRefreshing(false);
     }
@@ -262,15 +309,12 @@ const ExpenseTracker = () => {
     }
 
     try {
-      console.log("Adding category:", newCategory);
       await addaCategory(newCategory, userdetails.$id);
-      console.log("Category added successfully");
       setNewCategory({ name: "" });
       showAlert("Success", "Category added successfully!");
       setCategoryModalVisible(false);
       fetchData();
     } catch (error) {
-      console.error("Error adding category:", error);
       showAlert("Error", `Failed to add category! ${error.message}`, "error");
     }
   }, [newCategory, userdetails.$id, fetchData, showAlert]);
@@ -291,7 +335,7 @@ const ExpenseTracker = () => {
 
     try {
       await addExpenses(newExpense, userdetails.$id);
-      setNewExpense({ amount: "", description: "", categoryId: "" });
+      setNewExpense({ amount: "", description: "", categoryId: "", date: "" });
       showAlert("Success", "Expense added successfully!", "success");
       setExpenseModalVisible(false);
       fetchData();
@@ -385,7 +429,14 @@ const ExpenseTracker = () => {
             onAddCategory={() => setCategoryModalVisible(true)}
           />
         </View>
-
+        <View className="mb-6 flex-row items-center justify-between">
+          <Text className="text-xl text-cyan-100 font-plight mb-2">
+            This month total Expense
+          </Text>
+          <Text className="text-xl text-cyan-100 font-psemibold mb-2">
+            Rs {TotalExpenseForMonth.toFixed(2)}
+          </Text>
+        </View>
         <View className="mb-6">
           <Text className="text-xl text-cyan-100 font-plight mb-2">
             Category
@@ -424,6 +475,32 @@ const ExpenseTracker = () => {
     [categories, categoryTotals, expenses.length, selectAll, toggleSelectAll]
   );
 
+  // Memoized Search Input Component
+  const SearchInput = memo(({ value, onChange }) => (
+    <TextInput
+      placeholder="Filter expenses by month..."
+      value={value}
+      onChangeText={onChange}
+      style={{ padding: 10, borderWidth: 1, margin: 10 }}
+    />
+  ));
+
+  const handleSearchChange = useCallback((text) => {
+    setSearchQuery(text);
+  }, []);
+
+  const fiveMostRecent = [...expenses]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 6);
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 justify-center items-center bg-pink-900">
+        <ActivityIndicator size="large" color="#5C94C8" />
+        <Text className="text-white mt-4">Loading expenses...</Text>
+      </View>
+    );
+  }
   return (
     <View className="flex-1 p-4">
       {alert && (
@@ -439,7 +516,7 @@ const ExpenseTracker = () => {
       )}
 
       <FlatList
-        data={expenses}
+        data={fiveMostRecent}
         renderItem={({ item }) => (
           <ExpenseItem
             item={item}
