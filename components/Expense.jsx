@@ -238,7 +238,6 @@ const ExpenseTracker = () => {
   const [deleteAll, setDeleteAll] = useState(false);
   const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
 
   // Memoized category totals calculation
   const categoryTotals = React.useMemo(() => {
@@ -259,18 +258,6 @@ const ExpenseTracker = () => {
       return acc;
     }, 0);
   }, [expenses]);
-  
-const categoryTotalsForMonth = useMemo(() => {
-    const currentMonth = new Date().getMonth();
-    return expenses.reduce((acc, expense) => {
-      const expenseDate = new Date(expense.createdAt);
-      if (expenseDate.getMonth() === currentMonth) {
-        const category_name = expense.category?.category_name;
-        acc[category_name] = (acc[category_name] || 0) + parseFloat(expense.amount);
-      }
-      return acc;
-    }, {});
-  }, [expenses]); 
 
   const fetchData = useCallback(async () => {
     try {
@@ -332,13 +319,33 @@ const categoryTotalsForMonth = useMemo(() => {
       );
       return;
     }
+    const expenseDate = new Date(newExpense.date);
+    const today = new Date();
+    const expenseDateOnly = new Date(
+      expenseDate.getFullYear(),
+      expenseDate.getMonth(),
+      expenseDate.getDate()
+    );
+    const todayOnly = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
+    if (expenseDateOnly > todayOnly) {
+      showAlert(
+        "Validation Error",
+        "Date cannot be greater than today's date",
+        "error"
+      );
+      return;
+    }
 
     try {
       await addExpenses(newExpense, userdetails.$id);
       setNewExpense({ amount: "", description: "", categoryId: "", date: "" });
       showAlert("Success", "Expense added successfully!", "success");
       setExpenseModalVisible(false);
-      fetchData();
+      await fetchData();
     } catch (error) {
       showAlert("Error", `Failed to add expense! ${error.message}`, "error");
     }
@@ -361,6 +368,7 @@ const categoryTotalsForMonth = useMemo(() => {
 
   const handleDeleteAllAction = useCallback(async () => {
     // Check if selectedItems is empty (either null, undefined, empty array, or not an array)
+    console.log(selectedItems)
     if (
       !selectedItems ||
       !Array.isArray(selectedItems) ||
@@ -390,7 +398,7 @@ const categoryTotalsForMonth = useMemo(() => {
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, []);
 
   // Toggle select all functionality
   const toggleSelectAll = useCallback(() => {
@@ -572,7 +580,7 @@ const categoryTotalsForMonth = useMemo(() => {
         onSecondaryPress={() => setExpenseActionModalVisible(false)}
       />
       <CustomModal
-        title="Are you sure you want to delete all the entries?"
+        title="Are you sure you want to delete the selected entries?"
         modalVisible={isDeleteModalVisible}
         primaryButtonText="Delete"
         onPrimaryPress={handleDeleteAllAction}

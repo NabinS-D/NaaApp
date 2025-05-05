@@ -16,12 +16,14 @@ import { useGlobalContext } from "../context/GlobalProvider";
 import React, { useEffect, useState, useCallback } from "react";
 import * as Updates from "expo-updates";
 import NetInfo from "@react-native-community/netinfo";
-import {OneSignal} from "react-native-onesignal";
+import { OneSignal } from "react-native-onesignal";
+import useAlertContext from "@/context/AlertProvider";
 
 export default function App() {
   const [isChecking, setIsChecking] = useState(false);
   const [updateProgress, setUpdateProgress] = useState(0);
   const { isLoggedIn, isLoading, userdetails } = useGlobalContext();
+  const { showAlert } = useAlertContext();
 
   // OneSignal Initialization
   useEffect(() => {
@@ -30,28 +32,24 @@ export default function App() {
     const initializeOneSignal = async () => {
       try {
         const appId = process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID;
-        console.log("OneSignal App ID:", appId);
         if (!appId) {
-          console.error("OneSignal App ID is missing");
+          showAlert("Server error", "OneSignal App ID is missing", "error");
           return;
         }
 
-        // Debug OneSignal state at runtime
-        console.log("OneSignal at runtime:", OneSignal);
-        console.log("OneSignal.initialize at runtime:", OneSignal.initialize);
-       
         OneSignal.initialize(appId);
-        console.log("OneSignal initialized with App ID:", appId);
 
         // Request notification permission
         await OneSignal.Notifications.requestPermission(true);
-        const hasPermission = await OneSignal.Notifications.getPermissionAsync();
+        const hasPermission =
+          await OneSignal.Notifications.getPermissionAsync();
         console.log("Notification permission status:", hasPermission);
 
         // Get device state information (v5.x methods)
         const onesignalId = await OneSignal.User.getOnesignalId();
         const pushToken = await OneSignal.User.pushSubscription.getTokenAsync();
-        const isSubscribed = await OneSignal.User.pushSubscription.getOptedInAsync();
+        const isSubscribed =
+          await OneSignal.User.pushSubscription.getOptedInAsync();
         console.log("OneSignal ID:", onesignalId);
         console.log("Push Token:", pushToken);
         console.log("Is Subscribed:", isSubscribed);
@@ -61,9 +59,14 @@ export default function App() {
           OneSignal.login(userdetails.accountId);
           console.log("OneSignal external user ID set:", userdetails.accountId);
         }
-        console.log("OneSignal initialized successfully");
       } catch (error) {
-        console.error("OneSignal initialization failed:", error);
+        showAlert(
+          "Server Error",
+          `OneSignal initialization failed: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`,
+          "error"
+        );
       }
     };
 
@@ -79,14 +82,10 @@ export default function App() {
       const update = await Updates.fetchUpdateAsync();
 
       if (update.isNew) {
-        Alert.alert(
-          "Update Ready",
-          "Restart app to apply changes",
-          [
-            { text: "Later", style: "cancel" },
-            { text: "Restart Now", onPress: () => Updates.reloadAsync() },
-          ]
-        );
+        Alert.alert("Update Ready", "Restart app to apply changes", [
+          { text: "Later", style: "cancel" },
+          { text: "Restart Now", onPress: () => Updates.reloadAsync() },
+        ]);
       }
     } catch (error) {
       Alert.alert(

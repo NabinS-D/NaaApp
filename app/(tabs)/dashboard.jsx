@@ -14,6 +14,7 @@ import { PieChart, BarChart } from "react-native-gifted-charts";
 import { fetchAllExpenses } from "@/lib/APIs/ExpenseApi";
 import { Picker } from "@react-native-picker/picker";
 import Modal from "react-native-modal";
+import { useFocusEffect } from "@react-navigation/native";
 
 export default function Dashboard() {
   const { user, userdetails } = useGlobalContext();
@@ -24,9 +25,12 @@ export default function Dashboard() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
 
-  useEffect(() => {
-    fetchData();
-  }, [user?.$id]);
+  useFocusEffect(
+    useCallback(() => {
+      console.log("Dashboard focused");
+      fetchData();
+    }, [fetchData])
+  );
 
   const fetchData = useCallback(async () => {
     try {
