@@ -193,7 +193,7 @@ export default function GroupChat() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View className="py-4 px-4 bg-pink-700 rounded-lg mx-4 mt-5 mb-2">
+      <View className="py-4 px-4 bg-pink-700 rounded-lg mx-4 mt-14 mb-2">
         <Text className="text-2xl text-cyan-100 font-pbold text-center">
           Chat Room
         </Text>
@@ -243,7 +243,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#7C1F4E",
-    marginTop: 30,
   },
   messageList: {
     flex: 1,
