@@ -94,11 +94,16 @@ export default function GroupChat() {
             id,
             ...msg,
           }));
-          // Sort by timestamp in descending order (newest first)
-          setMessages(messageList.sort((a, b) => b.timestamp - a.timestamp));
+
+          // Sort messages by timestamp (newest first)
+          const sortedMessages = messageList.sort(
+            (a, b) => b.timestamp - a.timestamp
+          );
+          setMessages(sortedMessages);
         } else {
           setMessages([]);
         }
+
         // Clear loading states
         setInitialLoading(false);
         setLoadingMore(false);
@@ -112,18 +117,41 @@ export default function GroupChat() {
 
     // Cleanup function
     return () => unsubscribe();
-  }, [currentPage, pageSize]);
+  }, [currentPage, pageSize, userdetails]);
 
-  const sendMessage = () => {
+  // In your sendMessage function
+  const sendMessage = async () => {
     if (newMessage.trim()) {
-      const messagesRef = ref(database, "messages");
-      push(messagesRef, {
-        text: newMessage,
-        username: username,
-        timestamp: Date.now(),
-        userId: userdetails?.id || "anonymous",
-      });
-      setNewMessage("");
+      try {
+        // First save to Firebase
+        const messagesRef = ref(database, "messages");
+        push(messagesRef, {
+          text: newMessage,
+          username: username,
+          timestamp: Date.now(),
+          userId: userdetails?.$id || "anonymous",
+        });
+
+        // Then send notification via your server
+        await fetch(
+          "https://notification-server-for-sending-message.onrender.com/api/send-chat-notification",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              message: newMessage,
+              username: username,
+              senderUserId: userdetails?.$id || "anonymous",
+            }),
+          }
+        );
+
+        setNewMessage("");
+      } catch (error) {
+        console.error("Error:", error);
+      }
     }
   };
 
@@ -165,7 +193,7 @@ export default function GroupChat() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View className="py-4 px-4 bg-pink-700 rounded-lg mx-4 mt-5 mb-2">
+      <View className="py-4 px-4 bg-pink-700 rounded-lg mx-4 mt-14 mb-2">
         <Text className="text-2xl text-cyan-100 font-pbold text-center">
           Chat Room
         </Text>
@@ -215,7 +243,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#7C1F4E",
-    marginTop: 30,
   },
   messageList: {
     flex: 1,

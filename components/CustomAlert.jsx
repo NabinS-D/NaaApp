@@ -7,13 +7,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { useWindowDimensions } from "react-native";
-import {
-  X,
-  CheckCircle2,
-  AlertCircle,
-  Info,
-  AlertTriangle,
-} from "lucide-react-native";
+import Icon from "react-native-vector-icons/MaterialIcons";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 const FancyAlert = ({
@@ -28,7 +22,7 @@ const FancyAlert = ({
   const translateY = new Animated.Value(-100);
   const opacity = new Animated.Value(0);
   const { width } = useWindowDimensions();
-  const insets = useSafeAreaInsets(); // Get safe area insets
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (isVisible) {
@@ -78,13 +72,13 @@ const FancyAlert = ({
     const iconProps = { size: 24, color: styles[variant].iconColor };
     switch (variant) {
       case "success":
-        return <CheckCircle2 {...iconProps} />;
+        return <Icon name="check-circle" {...iconProps} />;
       case "error":
-        return <AlertCircle {...iconProps} />;
+        return <Icon name="error" {...iconProps} />;
       case "warning":
-        return <AlertTriangle {...iconProps} />;
+        return <Icon name="warning" {...iconProps} />;
       case "info":
-        return <Info {...iconProps} />;
+        return <Icon name="info" {...iconProps} />;
       default:
         return null;
     }
@@ -115,7 +109,7 @@ const FancyAlert = ({
               </Text>
             </View>
             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-              <X size={20} color={styles[variant].iconColor} />
+              <Icon name="close" size={20} color={styles[variant].iconColor} />
             </TouchableOpacity>
           </View>
         </Animated.View>

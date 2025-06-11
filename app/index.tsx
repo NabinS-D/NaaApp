@@ -16,140 +16,142 @@ import { useGlobalContext } from "../context/GlobalProvider";
 import React, { useEffect, useState, useCallback } from "react";
 import * as Updates from "expo-updates";
 import NetInfo from "@react-native-community/netinfo";
+import { OneSignal } from "react-native-onesignal";
+import useAlertContext from "@/context/AlertProvider";
 
 export default function App() {
-  // State management
   const [isChecking, setIsChecking] = useState(false);
   const [updateProgress, setUpdateProgress] = useState(0);
-  const [updateAvailable, setUpdateAvailable] = useState(false);
-  const { isLoggedIn, isLoading } = useGlobalContext();
+  const { isLoggedIn, isLoading, userdetails } = useGlobalContext();
+  const { showAlert } = useAlertContext();
 
-  // Function to handle the update process
-  const handleUpdate = useCallback(async () => {
-    try {
-      setIsChecking(true);
-      await Updates.fetchUpdateAsync();
+  // OneSignal Initialization
+  useEffect(() => {
+    if (Platform.OS === "web") return;
 
-      Alert.alert(
-        "Update Ready",
-        "Update has been downloaded successfully. The app will now restart to apply changes.",
-        [
-          {
-            text: "OK",
-            onPress: async () => {
-              try {
-                await Updates.reloadAsync();
-              } catch (error) {
-                Alert.alert(
-                  "Error",
-                  "Failed to restart app. Please manually close and reopen the app."
-                );
-              }
-            },
-          },
-        ]
-      );
-    } catch (error) {
-      setIsChecking(false);
-      Alert.alert(
-        "Update Failed",
-        "Failed to download the update. Please check your connection and try again."
-      );
-      console.error("Update error:", error);
-    }
-  }, []);
-
-  // Function to check for updates
-  const checkForUpdates = useCallback(
-    async (showNoUpdateAlert = false) => {
-      if (__DEV__) return; // Don't check for updates in development
-
+    const initializeOneSignal = async () => {
       try {
-        setIsChecking(true);
-
-        // Check network connectivity
-        const netInfo = await NetInfo.fetch();
-        if (!netInfo.isConnected) {
-          // Silently fail if no connection on startup
-          if (!showNoUpdateAlert) {
-            setIsChecking(false);
-            return;
-          }
-          // Only show alert if user manually checked for updates
-          Alert.alert(
-            "No Connection",
-            "Please check your internet connection and try again."
-          );
-          setIsChecking(false);
+        const appId = process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID;
+        if (!appId) {
+          showAlert("Server error", "OneSignal App ID is missing", "error");
           return;
         }
 
-        // Check for updates
+        OneSignal.initialize(appId);
+
+        // Request notification permission
+        await OneSignal.Notifications.requestPermission(true);
+        const hasPermission =
+          await OneSignal.Notifications.getPermissionAsync();
+        console.log("Notification permission status:", hasPermission);
+
+        // Get device state information (v5.x methods)
+        const onesignalId = await OneSignal.User.getOnesignalId();
+        const pushToken = await OneSignal.User.pushSubscription.getTokenAsync();
+        const isSubscribed =
+          await OneSignal.User.pushSubscription.getOptedInAsync();
+        console.log("OneSignal ID:", onesignalId);
+        console.log("Push Token:", pushToken);
+        console.log("Is Subscribed:", isSubscribed);
+
+        // Set external user ID if available
+        if (userdetails?.accountId) {
+          OneSignal.login(userdetails.accountId);
+          console.log("OneSignal external user ID set:", userdetails.accountId);
+        }
+      } catch (error) {
+        showAlert(
+          "Server Error",
+          `OneSignal initialization failed: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`,
+          "error"
+        );
+      }
+    };
+
+    if (!isLoading && isLoggedIn) {
+      initializeOneSignal();
+    }
+  }, [isLoading, isLoggedIn, userdetails?.accountId]);
+
+  // Update handling
+  const handleUpdate = useCallback(async () => {
+    try {
+      setIsChecking(true);
+      const update = await Updates.fetchUpdateAsync();
+
+      if (update.isNew) {
+        Alert.alert("Update Ready", "Restart app to apply changes", [
+          { text: "Later", style: "cancel" },
+          { text: "Restart Now", onPress: () => Updates.reloadAsync() },
+        ]);
+      }
+    } catch (error) {
+      Alert.alert(
+        "Update Failed",
+        error instanceof Error ? error.message : "An unknown error occurred"
+      );
+    } finally {
+      setIsChecking(false);
+    }
+  }, []);
+
+  const checkForUpdates = useCallback(
+    async (manualCheck = false) => {
+      if (__DEV__) return;
+
+      try {
+        setIsChecking(true);
         const update = await Updates.checkForUpdateAsync();
-        setUpdateAvailable(update.isAvailable);
 
         if (update.isAvailable) {
           Alert.alert(
             "Update Available",
-            "A new version of the app is available. Would you like to update now?",
+            manualCheck ? "Download now?" : "A new version is available",
             [
-              {
-                text: "Later",
-                onPress: () => setIsChecking(false),
-                style: "cancel",
-              },
-              {
-                text: "Update Now",
-                onPress: handleUpdate,
-              },
+              { text: "Cancel", style: "cancel" },
+              { text: "Update", onPress: handleUpdate },
             ]
           );
-        } else {
-          setIsChecking(false);
-          // Only show "Up to Date" alert if user manually checked
-          if (showNoUpdateAlert) {
-            Alert.alert("Up to Date", "You're using the latest version!");
-          }
+        } else if (manualCheck) {
+          Alert.alert("You're up to date!");
         }
       } catch (error) {
-        setIsChecking(false);
-        console.error("Error checking for updates:", error);
-        // Only show error alert if user manually checked for updates
-        if (showNoUpdateAlert) {
+        if (manualCheck) {
           Alert.alert(
-            "Error",
-            "Unable to check for updates. Please try again later."
+            "Check Failed",
+            error instanceof Error ? error.message : "An unknown error occurred"
           );
         }
+      } finally {
+        setIsChecking(false);
       }
     },
     [handleUpdate]
   );
 
-  // Check for updates on mount and setup network listener
+  // Check for updates on mount
   useEffect(() => {
-    // Initial update check
     checkForUpdates();
 
-    // Network change listener
     const unsubscribeNetInfo = NetInfo.addEventListener((state) => {
-      if (state.isConnected && updateAvailable) {
+      if (state.isConnected) {
         checkForUpdates();
       }
     });
 
-    // Cleanup function
     return () => {
       unsubscribeNetInfo();
     };
-  }, [checkForUpdates, updateAvailable]);
+  }, [checkForUpdates]);
 
-  // Loading state UI
+  // Loading state
   if (isLoading || isChecking) {
     return (
       <SafeAreaView style={{ backgroundColor: "#7C1F4E", height: "100%" }}>
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#00ff00" />
+          <ActivityIndicator size="large" color="#5C94C8" />
           {isChecking && (
             <>
               <Text className="text-white mt-2">
@@ -226,7 +228,6 @@ export default function App() {
               isLoading={isLoading}
             />
 
-            {/* Manual update check button */}
             <CustomButton
               title="Check for Updates"
               handlePress={() => checkForUpdates(true)}

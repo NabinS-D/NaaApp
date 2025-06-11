@@ -219,7 +219,7 @@ const AIChat = () => {
   if (isLoadingChatHistory) {
     return (
       <View className="flex-1 justify-center items-center">
-        <ActivityIndicator size="large" color="#fff" />
+          <ActivityIndicator size="large" color="#5C94C8" />
       </View>
     );
   }
@@ -257,7 +257,7 @@ const AIChat = () => {
           disabled={isLoading || !inputText.trim()}
         >
           {isLoading ? (
-            <ActivityIndicator size="small" color="#fff" />
+          <ActivityIndicator size="small" color="#5C94C8" />
           ) : (
             <Text className="text-white font-semibold text-lg">Generate</Text>
           )}

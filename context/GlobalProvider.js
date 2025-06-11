@@ -15,17 +15,16 @@ const GlobalProvider = ({ children }) => {
   const checkAuth = async () => {
     try {
       const currentUser = await getCurrentUser();
-      if (currentUser) {
+      if (currentUser?.account?.$id) {
         setUser(currentUser.account);
         setuserdetails(currentUser.document);
         setIsLoggedIn(true);
+        console.log('User authenticated:', currentUser.account.email);
       } else {
-        setUser(null);
-        setuserdetails(null);
-        setIsLoggedIn(false);
-        router.replace("/");
+        throw new Error('No valid user session');
       }
     } catch (error) {
+      console.log('Auth check failed:', error.message);
       setUser(null);
       setuserdetails(null);
       setIsLoggedIn(false);
@@ -35,7 +34,11 @@ const GlobalProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    checkAuth();
+    console.log('GlobalProvider useEffect: Starting checkAuth');
+    checkAuth().catch((error) => {
+      console.error('checkAuth failed in useEffect:', error);
+      setIsLoading(false);
+    });
   }, []);
 
   return (

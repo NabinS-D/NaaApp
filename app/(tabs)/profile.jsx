@@ -118,6 +118,7 @@ export default function Profile() {
   const [localAvatar, setLocalAvatar] = useState(userdetails?.avatar);
 
   useEffect(() => {
+    console.log("User Avator:", userdetails.avatar);
     if (userdetails?.avatar) {
       setLocalAvatar(userdetails.avatar);
     }

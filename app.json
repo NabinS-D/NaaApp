@@ -28,6 +28,12 @@
       "favicon": "./assets/images/naal.png"
     },
     "plugins": [
+      [
+        "onesignal-expo-plugin",
+        {
+          "mode": "development"
+        }
+      ],
       "expo-router",
       [
         "expo-splash-screen",
@@ -56,8 +62,6 @@
       "fallbackToCacheTimeout": 0,
       "url": "https://u.expo.dev/30398792-d340-47fc-ae74-04ea60dcba96"
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    }
+    "runtimeVersion": "1.0.0"
   }
 }
