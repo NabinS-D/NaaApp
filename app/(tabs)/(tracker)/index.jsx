@@ -2,6 +2,8 @@ import { Text, View } from "react-native";
 import React from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ExpenseTracker from "../../../components/Expense";
+import Insights from "../../../components/Insights";
+import Forecasting from "../../../components/Forecasting";
 
 const Tracker = () => {
   return (
@@ -12,6 +14,9 @@ const Tracker = () => {
           Tracker
         </Text>
       </View>
+      {/* Main Content */}
+      <Insights />
+      <Forecasting />
       <ExpenseTracker/>
     </SafeAreaView>
   );

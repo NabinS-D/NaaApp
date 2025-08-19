@@ -20,7 +20,7 @@ import { ID } from "react-native-appwrite";
 import { useGlobalContext } from "../context/GlobalProvider.js";
 import { config, databases } from "../lib/AIconfig.js";
 import { handleUserChatData } from "../lib/APIs/UserApi.js";
-import useAlertContext from "@/context/AlertProvider.js";
+import useAlertContext from "../context/AlertProvider.js";
 
 // Separate message creation logic
 const createMessage = (text, sender, imageData = null) => ({
@@ -71,7 +71,7 @@ const AIChat = () => {
     } catch (error) {
       showAlert(
         "Error",
-        `{Could not load chat history. ${error.message}`,
+        `Could not load chat history. ${error.message}`,
         "error"
       );
     } finally {
@@ -83,34 +83,38 @@ const AIChat = () => {
     fetchChatHistory();
   }, [fetchChatHistory]);
 
-  // Image generation query
+  // Image generation using Pollinations.ai (faster & better quality)
   const generateImage = useCallback(async (prompt) => {
-    const response = await fetch(config.aiImageEndpoint, {
-      headers: {
-        Authorization: `Bearer ${config.aiKey}`,
-        "Content-Type": "application/json",
-        "x-wait-for-model": "true",
-        "x-use-cache": "false",
-      },
-      method: "POST",
-      body: JSON.stringify({ inputs: prompt }),
-    });
+    try {
+      // Encode prompt for URL
+      const encodedPrompt = encodeURIComponent(prompt);
 
-    if (!response.ok) {
+      // Pollinations.ai API - much faster and better quality
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=512&height=512&model=flux&enhance=true&nologo=true`;
+
+      // Fetch the image
+      const response = await fetch(imageUrl);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error('Image generation error:', error);
       showAlert(
         "Error",
         "Failed to generate image. Please try again.",
         "error"
       );
+      throw error;
     }
-
-    const blob = await response.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
   }, []);
 
   // Database operations
@@ -186,40 +190,38 @@ const AIChat = () => {
   const MessageItem = useMemo(
     () =>
       ({ item }) =>
-        (
-          <View
-            className={`max-w-[80%] my-1 p-3 rounded-xl ${
-              item.sender === "user"
-                ? "self-end bg-blue-500 rounded-br-sm"
-                : "self-start bg-gray-200 rounded-bl-sm"
+      (
+        <View
+          className={`max-w-[80%] my-1 p-3 rounded-xl ${item.sender === "user"
+              ? "self-end bg-blue-500 rounded-br-sm"
+              : "self-start bg-gray-200 rounded-bl-sm"
             }`}
-          >
-            <Text
-              className={`text-base ${
-                item.sender === "user" ? "text-white" : "text-black"
+        >
+          <Text
+            className={`text-base ${item.sender === "user" ? "text-white" : "text-black"
               }`}
-            >
-              {item.text}
-            </Text>
-            {item.imageData && (
-              <Image
-                source={{ uri: item.imageData }}
-                className="w-48 h-48 mt-3 rounded-xl"
-                resizeMode="contain"
-              />
-            )}
-            <Text className="text-xs text-black mt-1 self-end">
-              {new Date(item.timestamp).toLocaleTimeString()}
-            </Text>
-          </View>
-        ),
+          >
+            {item.text}
+          </Text>
+          {item.imageData && (
+            <Image
+              source={{ uri: item.imageData }}
+              className="w-48 h-48 mt-3 rounded-xl"
+              resizeMode="contain"
+            />
+          )}
+          <Text className="text-xs text-black mt-1 self-end">
+            {new Date(item.timestamp).toLocaleTimeString()}
+          </Text>
+        </View>
+      ),
     []
   );
 
   if (isLoadingChatHistory) {
     return (
       <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#5C94C8" />
+        <ActivityIndicator size="large" color="#5C94C8" />
       </View>
     );
   }
@@ -250,14 +252,13 @@ const AIChat = () => {
           editable={!isLoading}
         />
         <TouchableOpacity
-          className={`justify-center items-center rounded-xl h-12 w-32 ${
-            isLoading ? "bg-gray-400" : "bg-blue-500"
-          }`}
+          className={`justify-center items-center rounded-xl h-12 w-32 ${isLoading ? "bg-gray-400" : "bg-blue-500"
+            }`}
           onPress={handleSendMessage}
           disabled={isLoading || !inputText.trim()}
         >
           {isLoading ? (
-          <ActivityIndicator size="small" color="#5C94C8" />
+            <ActivityIndicator size="small" color="#5C94C8" />
           ) : (
             <Text className="text-white font-semibold text-lg">Generate</Text>
           )}

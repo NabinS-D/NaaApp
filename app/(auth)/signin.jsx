@@ -8,7 +8,7 @@ import CustomButton from "../../components/CustomButton";
 import { Link, router } from "expo-router";
 import { signIn } from "../../lib/APIs/UserApi.js";
 import { useGlobalContext } from "../../context/GlobalProvider.js";
-import useAlertContext from "@/context/AlertProvider";
+import useAlertContext from "../../context/AlertProvider";
 
 const SignIn = () => {
   const { checkAuth } = useGlobalContext();

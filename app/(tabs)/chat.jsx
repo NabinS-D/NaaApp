@@ -19,7 +19,8 @@ import {
   orderByChild,
   limitToLast,
 } from "firebase/database";
-import { useGlobalContext } from "@/context/GlobalProvider";
+import { useGlobalContext } from "../../context/GlobalProvider";
+import useAlertContext from "../../context/AlertProvider";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function GroupChat() {
@@ -27,7 +28,7 @@ export default function GroupChat() {
   const [newMessage, setNewMessage] = useState("");
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const { userdetails } = useGlobalContext();
+  const { userdetails, user } = useGlobalContext();
   const [username, setUsername] = useState(userdetails?.username || "");
   const flatListRef = useRef(null);
   const [pageSize] = useState(20);
@@ -119,39 +120,75 @@ export default function GroupChat() {
     return () => unsubscribe();
   }, [currentPage, pageSize, userdetails]);
 
-  // In your sendMessage function
+  // Send message with improved notifications
   const sendMessage = async () => {
     if (newMessage.trim()) {
       try {
         // First save to Firebase
         const messagesRef = ref(database, "messages");
-        push(messagesRef, {
+        const messageData = {
           text: newMessage,
           username: username,
           timestamp: Date.now(),
-          userId: userdetails?.$id || "anonymous",
-        });
+          userId: user?.$id || "anonymous", // Use account ID consistently
+        };
 
-        // Then send notification via your server
-        await fetch(
-          "https://notification-server-for-sending-message.onrender.com/api/send-chat-notification",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              message: newMessage,
-              username: username,
-              senderUserId: userdetails?.$id || "anonymous",
-            }),
-          }
-        );
+        await push(messagesRef, messageData);
+
+        // Send OneSignal notification to all users except sender (use user account ID which matches OneSignal external ID)
+        console.log("Current user ID:", user?.$id);
+        console.log("OneSignal should exclude:", user?.$id);
+        await sendChatNotification(newMessage, userdetails?.name || "Anonymous", user?.$id || "anonymous");
 
         setNewMessage("");
       } catch (error) {
-        console.error("Error:", error);
+        console.error("Error sending message:", error);
       }
+    }
+  };
+
+  // Improved notification function using OneSignal directly
+  const sendChatNotification = async (message, senderUsername, senderUserId) => {
+    try {
+      console.log("Notification function - Sender ID to exclude:", senderUserId);
+      console.log("Notification function - Sender username:", senderUsername);
+
+      const notificationData = {
+        app_id: process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID,
+        included_segments: ["All"], // Send to all users
+        excluded_external_user_ids: [senderUserId], // Exclude sender
+        headings: {
+          en: "New Message"
+        },
+        contents: {
+          en: `${senderUsername}: ${message.length > 50 ? message.substring(0, 50) + "..." : message}`
+        },
+        data: {
+          type: "chat_message",
+          sender: senderUsername,
+          senderId: senderUserId,
+          message: message
+        },
+        android_channel_id: `${process.env.EXPO_PUBLIC_ONESIGNAL_CHANNEL_ID}`,
+        priority: 10
+      };
+
+      const response = await fetch("https://onesignal.com/api/v1/notifications", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `key ${process.env.EXPO_PUBLIC_ONESIGNAL_REST_API_KEY}`
+        },
+        body: JSON.stringify(notificationData)
+      });
+
+      if (!response.ok) {
+        console.error("Notification failed:", await response.text());
+      } else {
+        console.log("Notification sent successfully");
+      }
+    } catch (error) {
+      console.error("Error sending notification:", error);
     }
   };
 
