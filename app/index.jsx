@@ -17,7 +17,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import * as Updates from "expo-updates";
 import NetInfo from "@react-native-community/netinfo";
 import { OneSignal } from "react-native-onesignal";
-import useAlertContext from "@/context/AlertProvider";
+import useAlertContext from "../context/AlertProvider";
 
 export default function App() {
   const [isChecking, setIsChecking] = useState(false);

@@ -11,7 +11,7 @@ import {
   fetchAllCategories,
   handleEditCategory,
 } from "../../../lib/APIs/CategoryApi.js";
-import useAlertContext from "@/context/AlertProvider.js";
+import useAlertContext from "../../../context/AlertProvider.js";
 import { ActivityIndicator } from "react-native";
 
 // Memoized Header Component

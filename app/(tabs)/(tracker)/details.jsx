@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
 import { ScrollView, RefreshControl } from "react-native";
 import { expensesOfCategory } from "../../../lib/APIs/ExpenseApi";
-import useAlertContext from "@/context/AlertProvider";
+import useAlertContext from "../../../context/AlertProvider";
 
 // Memoized Category Header Component
 const CategoryHeader = memo(({ title }) => (

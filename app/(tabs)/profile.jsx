@@ -11,6 +11,7 @@ import {
   RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from 'expo-linear-gradient';
 import { useGlobalContext } from "../../context/GlobalProvider";
 import { router } from "expo-router";
 import CustomButton from "../../components/CustomButton";
@@ -22,58 +23,106 @@ import {
   handleLogout,
   uploadUserProfilePicture,
 } from "../../lib/APIs/UserApi";
-import FormFields from "@/components/FormFields";
-import useAlertContext from "@/context/AlertProvider";
+import FormFields from "../../components/FormFields";
+import useAlertContext from "../../context/AlertProvider";
 
 const HeaderButtons = memo(({ handlePasswordChange }) => (
-  <View className="flex-row justify-evenly">
-    <CustomButton
-      title="Change password"
-      containerStyles="w-[200]"
-      handlePress={handlePasswordChange}
-      fullWidth={false}
-      buttoncolor="bg-green-500"
-    />
+  <View style={styles.headerButtonsContainer}>
+    <TouchableOpacity onPress={handlePasswordChange} style={styles.modernButton}>
+      <LinearGradient
+        colors={['#10B981', '#059669']}
+        style={styles.gradientButton}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+      >
+        <Ionicons name="key-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+        <Text style={styles.buttonText}>Change Password</Text>
+      </LinearGradient>
+    </TouchableOpacity>
   </View>
 ));
 // Memoized components for better performance
-const ProfileImage = memo(({ uri, isUploading, onPress }) => (
-  <TouchableOpacity onPress={onPress} disabled={isUploading}>
-    <View style={styles.profileImageContainer}>
-      <Image style={styles.profileImage} source={{ uri }} resizeMode="cover" />
-      {isUploading ? (
-        <ActivityIndicator
-          style={styles.uploadOverlay}
-          size="large"
-          color="#fff"
-        />
-      ) : (
-        <View style={styles.uploadOverlay}>
-          <Ionicons name="camera" size={30} color="#fff" />
+const ProfileImage = memo(({ uri, isUploading, onPress }) => {
+  console.log("ProfileImage URI:", uri);
+  return (
+    <View style={styles.profileSection}>
+      <TouchableOpacity onPress={onPress} disabled={isUploading}>
+        <View style={styles.profileImageContainer}>
+          <LinearGradient
+            colors={['#F59E0B', '#EF4444', '#8B5CF6']}
+            style={styles.profileImageGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <View style={styles.profileImageInner}>
+              <Image 
+                style={styles.profileImage} 
+                source={uri ? { uri } : require('../../assets/images/profile.png')} 
+                resizeMode="cover"
+                onError={(error) => console.log("Image load error:", error.nativeEvent.error)}
+                onLoad={() => console.log("Image loaded successfully")}
+                defaultSource={require('../../assets/images/profile.png')}
+              />
+            </View>
+          </LinearGradient>
+          {isUploading ? (
+            <View style={styles.uploadOverlay}>
+              <ActivityIndicator size="large" color="#fff" />
+            </View>
+          ) : (
+            <View style={styles.uploadOverlay}>
+              <LinearGradient
+                colors={['#6366F1', '#8B5CF6']}
+                style={styles.cameraButtonGradient}
+              >
+                <Ionicons name="camera" size={24} color="#fff" />
+              </LinearGradient>
+            </View>
+          )}
         </View>
-      )}
+      </TouchableOpacity>
     </View>
-  </TouchableOpacity>
-));
+  );
+});
 
 const UserDetails = memo(
   ({ username, email, userId, labels, emailVerification }) => (
-    <View style={styles.detailsContainer}>
-      <Text style={styles.username}>
-        {username || "User"}{" "}
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <Ionicons
-            name={emailVerification ? "checkmark-circle" : "close-circle"}
-            size={20}
-            color={emailVerification ? "green" : "red"}
-          />
+    <View style={styles.detailsCard}>
+      <LinearGradient
+        colors={['rgba(255,255,255,0.15)', 'rgba(255,255,255,0.05)']}
+        style={styles.detailsGradient}
+      >
+        <View style={styles.usernameContainer}>
+          <Text style={styles.username}>{username || "User"}</Text>
+          <View>
+            <Ionicons
+              name={emailVerification ? "checkmark-circle" : "close-circle"}
+              size={22}
+              color={emailVerification ? "#10B981" : "#EF4444"}
+            />
+          </View>
         </View>
-      </Text>
-      <View>
-        <Text style={styles.email}>{labels?.[0] ?? "User"}</Text>
-        <Text style={styles.email}>{email}</Text>
-        <Text style={styles.email}>User ID - {userId}</Text>
-      </View>
+        
+        <View style={styles.detailsGrid}>
+          <View style={styles.detailItem}>
+            <Ionicons name="person-outline" size={18} color="#E5E7EB" />
+            <Text style={styles.detailLabel}>Role</Text>
+            <Text style={styles.detailValue}>{labels?.[0] ?? "User"}</Text>
+          </View>
+          
+          <View style={styles.detailItem}>
+            <Ionicons name="mail-outline" size={18} color="#E5E7EB" />
+            <Text style={styles.detailLabel}>Email</Text>
+            <Text style={styles.detailValue}>{email}</Text>
+          </View>
+          
+          <View style={styles.detailItem}>
+            <Ionicons name="finger-print-outline" size={18} color="#E5E7EB" />
+            <Text style={styles.detailLabel}>User ID</Text>
+            <Text style={styles.detailValue}>{userId?.slice(0, 8)}...</Text>
+          </View>
+        </View>
+      </LinearGradient>
     </View>
   )
 );
@@ -329,13 +378,25 @@ export default function Profile() {
             emailVerification={user?.emailVerification}
           />
 
-          <CustomButton
-            title="Logout"
-            containerStyles="w-[100]"
-            handlePress={handleLogoutAction}
-            isLoading={isLoading}
-          />
-          <View className="mt-6">
+          <View style={styles.actionsContainer}>
+            <TouchableOpacity onPress={handleLogoutAction} style={styles.logoutButton} disabled={isLoading}>
+              <LinearGradient
+                colors={['#EF4444', '#DC2626']}
+                style={styles.logoutGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="log-out-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+                    <Text style={styles.buttonText}>Logout</Text>
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+            
             <HeaderButtons
               handlePasswordChange={() => setPasswordChangeModalVisible(true)}
             />
@@ -410,58 +471,188 @@ const styles = StyleSheet.create({
     width: "100%",
     alignItems: "center",
   },
+  // Profile Section Styles
+  profileSection: {
+    alignItems: "center",
+    marginBottom: 30,
+  },
   profileImageContainer: {
     position: "relative",
-    marginBottom: 5,
+    marginBottom: 20,
+  },
+  profileImageGradient: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    padding: 4,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 15,
+  },
+  profileImageInner: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 66,
+    overflow: "hidden",
+    backgroundColor: "#fff",
   },
   profileImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 2,
-    borderColor: "#fff",
+    width: "100%",
+    height: "100%",
   },
   uploadOverlay: {
     position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    bottom: 5,
+    right: 5,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
+  },
+  cameraButtonGradient: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
   },
-  detailsContainer: {
-    flex: 1,
+  // User Details Card Styles
+  detailsCard: {
+    width: "100%",
+    marginBottom: 30,
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+  detailsGradient: {
+    padding: 24,
+    borderRadius: 20,
+  },
+  usernameContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
   },
   username: {
     fontFamily: "Poppins-Bold",
-    fontSize: 24,
+    fontSize: 28,
     color: "#fff",
-    marginBottom: 5,
-    alignSelf: "center",
+    textAlign: "center",
+    marginRight: 10,
+  },
+  detailsGrid: {
+    gap: 16,
+  },
+  detailItem: {
+    flexDirection: "row",
     alignItems: "center",
-    marginLeft: 20,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    padding: 16,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: "#8B5CF6",
   },
-  email: {
+  detailLabel: {
+    fontFamily: "Poppins-Medium",
+    fontSize: 14,
+    color: "#E5E7EB",
+    marginLeft: 12,
+    flex: 1,
+  },
+  detailValue: {
     fontFamily: "Poppins-Regular",
-    fontSize: 16,
-    color: "#f8f8f8",
-    marginBottom: 5,
-    alignSelf: "center",
+    fontSize: 14,
+    color: "#fff",
+    flex: 2,
+    textAlign: "right",
   },
+  // Actions Container Styles
+  actionsContainer: {
+    width: "100%",
+    gap: 16,
+  },
+  headerButtonsContainer: {
+    width: "100%",
+  },
+  modernButton: {
+    borderRadius: 16,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  gradientButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+  },
+  logoutButton: {
+    borderRadius: 16,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  logoutGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+  },
+  buttonText: {
+    fontFamily: "Poppins-SemiBold",
+    fontSize: 16,
+    color: "#fff",
+    textAlign: "center",
+  },
+  // Modal Styles
   optionButton: {
-    padding: 15,
-    backgroundColor: "#f1f1f1",
-    marginVertical: 5,
-    borderRadius: 10,
+    padding: 16,
+    backgroundColor: "#f8f9fa",
+    marginVertical: 6,
+    borderRadius: 12,
     width: "100%",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   optionText: {
-    color: "black",
-    fontWeight: "bold",
+    color: "#374151",
+    fontFamily: "Poppins-Medium",
+    fontSize: 16,
   },
   previewOverlay: {
     position: "absolute",
@@ -469,26 +660,27 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.1)", // Light grey background
+    backgroundColor: "rgba(0,0,0,0.8)",
     zIndex: 1000,
     justifyContent: "center",
     alignItems: "center",
   },
   previewImage: {
-    width: "100%", // Full width
-    height: "100%", // Let height be calculated based on aspect ratio
-    aspectRatio: 1, // Maintain aspect ratio
-    resizeMode: "cover", // Ensure whole image is visible
+    width: "90%",
+    height: "70%",
+    borderRadius: 12,
   },
   closeButton: {
     position: "absolute",
-    top: -20,
+    top: 60,
     right: 20,
     zIndex: 1001,
-    padding: 10,
-    backgroundColor: "grey", // Remove background
-    borderRadius: 50,
+    padding: 12,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    borderRadius: 25,
     width: 50,
     height: 50,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

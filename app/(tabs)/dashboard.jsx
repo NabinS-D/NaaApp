@@ -9,9 +9,9 @@ import {
   ScrollView,
 } from "react-native";
 import { useGlobalContext } from "../../context/GlobalProvider";
-import useAlertContext from "@/context/AlertProvider";
+import useAlertContext from "../../context/AlertProvider";
 import { PieChart, BarChart } from "react-native-gifted-charts";
-import { fetchAllExpenses } from "@/lib/APIs/ExpenseApi";
+import { fetchAllExpenses } from "../../lib/APIs/ExpenseApi";
 import { Picker } from "@react-native-picker/picker";
 import Modal from "react-native-modal";
 import { useFocusEffect } from "@react-navigation/native";

@@ -8,9 +8,13 @@ import {
   RefreshControl,
   ActivityIndicator,
   TextInput,
+  ScrollView,
+  Image,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { router } from "expo-router";
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useGlobalContext } from "../context/GlobalProvider.js";
 import CustomModal from "./CustomModal.jsx";
 import {
@@ -19,39 +23,60 @@ import {
   deleteExpenseById,
   fetchAllExpenses,
 } from "../lib/APIs/ExpenseApi.js";
-import { addaCategory, fetchAllCategories } from "../lib/APIs/CategoryApi.js";
+import { addCategory, fetchAllCategories } from "../lib/APIs/CategoryApi.js";
 import CustomButton from "./CustomButton.jsx";
 import FormFields from "./FormFields.jsx";
 import FancyAlert from "./CustomAlert.jsx";
-import useAlertContext from "@/context/AlertProvider.js";
+import useAlertContext from "../context/AlertProvider.js";
+import { processImageWithOCR, parseOCRText } from "../lib/ocr.js";
+import QRScanner from "./QRScanner.jsx";
+import icons from "../constants/icons.js";
 
 // Memoized Header Buttons Component
-const HeaderButtons = memo(({ onAddExpense, onAddCategory }) => (
-  <View className="flex-row justify-evenly">
-    <CustomButton
-      title="Add Expense"
-      handlePress={onAddExpense}
-      fullWidth={false}
-      containerStyles="px-4 py-2 rounded-lg w-[100px]"
-      buttoncolor="bg-blue-500"
-      textStyles="text-white"
-    />
-    <CustomButton
-      title="Add Category"
-      handlePress={onAddCategory}
-      fullWidth={false}
-      containerStyles="px-4 py-2 rounded-lg w-[100px]"
-      buttoncolor="bg-green-500"
-      textStyles="text-white"
-    />
-    <CustomButton
-      title="List Categories"
-      handlePress={() => router.push({ pathname: "categoryList" })}
-      fullWidth={false}
-      containerStyles="px-4 py-2 rounded-lg w-[100px]"
-      buttoncolor="bg-orange-500"
-      textStyles="text-white"
-    />
+const HeaderButtons = memo(({ onAddExpense, onAddCategory, onListCategories, onScanReceipt, onScanQR }) => (
+  <View className="mb-6">
+    <View className="flex-row justify-center items-center gap-2 flex-wrap mb-3">
+      <CustomButton
+        title="Add Expense"
+        handlePress={onAddExpense}
+        containerStyles="px-3 py-2 rounded-lg flex-1 min-w-[80px]"
+        buttoncolor="bg-blue-500"
+        textStyles="text-white text-xs text-center"
+      />
+      <CustomButton
+        title="Add Category"
+        handlePress={onAddCategory}
+        containerStyles="px-3 py-2 rounded-lg flex-1 min-w-[80px]"
+        buttoncolor="bg-green-500"
+        textStyles="text-white text-xs text-center"
+      />
+      <CustomButton
+        title="List Categories"
+        handlePress={onListCategories}
+        containerStyles="px-3 py-2 rounded-lg flex-1 min-w-[80px]"
+        buttoncolor="bg-orange-500"
+        textStyles="text-white text-xs text-center"
+      />
+    </View>
+    
+    {/* Scan Actions */}
+    <View className="flex-row justify-center items-center gap-4">
+      <TouchableOpacity 
+        onPress={onScanReceipt}
+        className="flex-row items-center gap-1 bg-cyan-100 px-3 py-2 rounded-lg"
+      >
+        <MaterialIcons name="camera-alt" size={18} color="#0891b2" />
+        <Text className="text-cyan-700 text-xs font-pmedium">Scan Receipt</Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity 
+        onPress={onScanQR}
+        className="flex-row items-center gap-1 bg-purple-100 px-3 py-2 rounded-lg"
+      >
+        <MaterialIcons name="qr-code-scanner" size={18} color="#7c3aed" />
+        <Text className="text-purple-700 text-xs font-pmedium">Scan QR</Text>
+      </TouchableOpacity>
+    </View>
   </View>
 ));
 
@@ -101,7 +126,7 @@ const CategoriesList = memo(({ categories, categoryTotals }) => {
 });
 
 // Memoized Expense Item Component
-const ExpenseItem = memo(({ item, onLongPress, isSelected, onSelect }) => {
+const ExpenseItem = memo(({ item, onLongPress, isSelected, onSelect, onDelete }) => {
   const formatDate = (timestamp) => {
     const date = new Date(timestamp);
     return date.toLocaleString("en-US", {
@@ -119,20 +144,25 @@ const ExpenseItem = memo(({ item, onLongPress, isSelected, onSelect }) => {
       onLongPress={() => onLongPress(item)}
       onPress={() => onSelect(item)}
     >
-      <View className="bg-white p-4 rounded-lg mb-2 flex-row justify-between">
-        <View className="flex-row gap-2 items-center">
+      <View className="bg-white p-4 rounded-lg mb-2 flex-row justify-between items-center">
+        <View className="flex-1 flex-row gap-2 items-center mr-2">
           <MaterialIcons
             name={isSelected ? "check-box" : "check-box-outline-blank"}
             size={24}
             color="#4630EB"
           />
-          <Text className="font-pmedium">{item.description}</Text>
+          <Text className="font-pmedium flex-shrink-1">{item.description}</Text>
         </View>
-        <View>
-          <Text className="text-lg">
-            Rs {parseFloat(item.amount).toFixed(2)}
-          </Text>
-          <Text className="text-gray-500">{formatDate(item.$createdAt)}</Text>
+        <View className="flex-row items-center gap-3">
+          <View className="items-end">
+            <Text className="text-lg font-psemibold">
+              Rs {parseFloat(item.amount).toFixed(2)}
+            </Text>
+            <Text className="text-gray-500 text-xs">{formatDate(item.$createdAt)}</Text>
+          </View>
+          <TouchableOpacity onPress={() => onDelete(item)}>
+            <MaterialIcons name="delete" size={20} color="red" />
+          </TouchableOpacity>
         </View>
       </View>
     </TouchableOpacity>
@@ -141,7 +171,15 @@ const ExpenseItem = memo(({ item, onLongPress, isSelected, onSelect }) => {
 
 // Memoized Add Expense Modal Component
 const AddExpenseModal = memo(
-  ({ visible, onClose, onAdd, categories, expense, setExpense }) => (
+  ({
+    visible,
+    onClose,
+    onAdd,
+    categories,
+    expense,
+    setExpense,
+    scannedImage,
+  }) => (
     <CustomModal
       modalVisible={visible}
       onSecondaryPress={onClose}
@@ -209,6 +247,13 @@ const AddExpenseModal = memo(
           otherStyles="mb-4"
           inputProps={{ type: "date" }} // HTML5 date picker
         />
+
+        {scannedImage && (
+          <Image
+            source={{ uri: scannedImage }}
+            style={{ width: "100%", height: 200, resizeMode: "contain" }}
+          />
+        )}
       </View>
     </CustomModal>
   )
@@ -238,6 +283,8 @@ const ExpenseTracker = () => {
   const [deleteAll, setDeleteAll] = useState(false);
   const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [scannedImage, setScannedImage] = useState(null);
+  const [isQRScannerVisible, setQRScannerVisible] = useState(false);
 
   // Memoized category totals calculation
   const categoryTotals = React.useMemo(() => {
@@ -296,7 +343,7 @@ const ExpenseTracker = () => {
     }
 
     try {
-      await addaCategory(newCategory, userdetails.$id);
+      await addCategory(newCategory, userdetails.$id);
       setNewCategory({ name: "" });
       showAlert("Success", "Category added successfully!");
       setCategoryModalVisible(false);
@@ -307,6 +354,7 @@ const ExpenseTracker = () => {
   }, [newCategory, userdetails.$id, fetchData, showAlert]);
 
   const addExpense = useCallback(async () => {
+    // Validate required fields
     if (
       !newExpense.amount ||
       !newExpense.description ||
@@ -315,6 +363,17 @@ const ExpenseTracker = () => {
       showAlert(
         "Validation Error",
         "Please fill in all required fields.",
+        "error"
+      );
+      return;
+    }
+
+    // Validate amount is a valid number
+    const amountValue = parseFloat(newExpense.amount);
+    if (isNaN(amountValue) || amountValue <= 0) {
+      showAlert(
+        "Validation Error",
+        "Please enter a valid amount greater than 0.",
         "error"
       );
       return;
@@ -341,12 +400,19 @@ const ExpenseTracker = () => {
     }
 
     try {
-      await addExpenses(newExpense, userdetails.$id);
+      // Prepare expense data with proper amount conversion
+      const expenseToAdd = {
+        ...newExpense,
+        amount: amountValue // Use the validated numeric value (float)
+      };
+      
+      await addExpenses(expenseToAdd, userdetails.$id);
       setNewExpense({ amount: "", description: "", categoryId: "", date: "" });
       showAlert("Success", "Expense added successfully!", "success");
       setExpenseModalVisible(false);
       await fetchData();
     } catch (error) {
+      console.log(`Failed to add expense! ${error.message}`)
       showAlert("Error", `Failed to add expense! ${error.message}`, "error");
     }
   }, [newExpense, userdetails.$id, fetchData, showAlert]);
@@ -428,6 +494,150 @@ const ExpenseTracker = () => {
     }
   };
 
+  const handleScanReceipt = async () => {
+    console.log('=== RECEIPT SCAN STARTED ===');
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      console.log('Camera permission status:', status);
+      if (status !== 'granted') {
+        console.log('Camera permission denied');
+        showAlert('Permission Denied', 'Camera access is required to scan receipts.');
+        return;
+      }
+
+      console.log('Launching camera...');
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        quality: 0.5,
+        base64: true,
+      });
+
+      if (result.canceled) {
+        console.log('Camera canceled by user');
+        return;
+      }
+
+      const imageUri = result.assets[0].uri;
+      console.log('Image captured successfully:', imageUri);
+      console.log('Image size:', result.assets[0].fileSize || 'Unknown');
+      setScannedImage(imageUri);
+      setIsLoading(true);
+
+      console.log('=== IMAGE PROCESSING STARTED ===');
+      console.log('Resizing and enhancing image for OCR...');
+      const manipResult = await ImageManipulator.manipulateAsync(
+        result.assets[0].uri,
+        [
+          { resize: { width: 1200 } }, // Increased resolution for better OCR
+          { flip: ImageManipulator.FlipType.Vertical }, // Sometimes helps with orientation
+          { flip: ImageManipulator.FlipType.Vertical }, // Flip back to original
+        ],
+        { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+      );
+      console.log('Image manipulation completed');
+
+      console.log('=== OCR PROCESSING STARTED ===');
+      let parsedData = {};
+      try {
+        console.log('Calling processImageWithOCR...');
+        const ocrText = await processImageWithOCR(manipResult.base64);
+        console.log('=== OCR RESPONSE ===');
+        console.log('Full OCR Text:', ocrText);
+        console.log('OCR text length:', ocrText?.length || 0);
+
+        console.log('=== PARSING OCR TEXT ===');
+        parsedData = parseOCRText(ocrText);
+        console.log('Parsed data result:', JSON.stringify(parsedData, null, 2));
+      } catch (ocrError) {
+        console.error('=== OCR PROCESS ERROR ===');
+        console.error('Error type:', ocrError.name);
+        console.error('Error message:', ocrError.message);
+        console.error('Full error:', ocrError);
+        // Don't throw error, continue with manual entry
+        parsedData = {};
+      }
+
+      console.log('=== SETTING UP EXPENSE FORM ===');
+      // Set up the form with OCR data or defaults
+      const expenseData = {
+        amount: parsedData.amount ? parseFloat(parsedData.amount).toString() : '',
+        description: parsedData.description || (parsedData.amount ? 'Scanned Receipt' : 'Receipt (Manual Entry)'),
+        date: parsedData.date || new Date().toISOString().split('T')[0],
+      };
+      console.log('Setting expense data:', expenseData);
+      
+      setNewExpense(prev => ({
+        ...prev,
+        ...expenseData
+      }));
+
+      setExpenseModalVisible(true);
+      
+      if (parsedData.amount) {
+        console.log('OCR SUCCESS: Amount detected');
+        showAlert('Success', `Receipt scanned successfully! Amount detected: Rs ${parsedData.amount}`);
+      } else {
+        console.log('OCR PARTIAL: No amount detected');
+        showAlert('Info', 'Receipt captured. Please enter the amount manually.');
+      }
+    } catch (error) {
+      console.error('=== RECEIPT SCAN ERROR ===');
+      console.error('Error type:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Full error:', error);
+      showAlert('OCR Error', `Failed to scan receipt: ${error.message}`);
+    } finally {
+      console.log('=== RECEIPT SCAN COMPLETED ===');
+      setIsLoading(false);
+    }
+  };
+
+  const handleQRScan = (data, type) => {
+    console.log('=== QR SCAN RESULT ===');
+    console.log('QR Scan Data:', JSON.stringify(data, null, 2));
+    console.log('QR Scan Type:', type);
+    console.log('Raw data available:', !!data.rawData);
+    console.log('Amount available:', !!data.amount);
+    
+    setQRScannerVisible(false);
+    
+    if (type === 'qr' && data.amount) {
+      console.log('Processing expense QR code...');
+      // Handle expense QR code
+      const expenseData = {
+        amount: String(data.amount),
+        description: data.description || 'QR Code Expense',
+        date: data.date || new Date().toISOString().split('T')[0],
+      };
+      console.log('Setting QR expense data:', expenseData);
+      
+      setNewExpense(prev => ({
+        ...prev,
+        ...expenseData
+      }));
+      
+      setExpenseModalVisible(true);
+      showAlert('Success', `QR code scanned successfully! Amount: Rs ${data.amount}`);
+    } else {
+      console.log('Processing generic QR code...');
+      // Handle other QR codes or text
+      const content = data.rawData || JSON.stringify(data);
+      console.log('Generic QR content:', content);
+      showAlert('Info', `QR Code Content: ${content}`);
+    }
+    console.log('=== QR SCAN PROCESSING COMPLETED ===');
+  };
+
+  const handleScanQRPress = () => {
+    console.log('=== QR SCAN INITIATED ===');
+    console.log('Opening QR scanner...');
+    setQRScannerVisible(true);
+  };
+
+  const handleListCategories = () => {
+    router.push('/(tabs)/(tracker)/categoryList');
+  };
+
   const renderHeader = useCallback(
     () => (
       <>
@@ -435,6 +645,9 @@ const ExpenseTracker = () => {
           <HeaderButtons
             onAddExpense={() => setExpenseModalVisible(true)}
             onAddCategory={() => setCategoryModalVisible(true)}
+            onListCategories={handleListCategories}
+            onScanReceipt={handleScanReceipt}
+            onScanQR={handleScanQRPress}
           />
         </View>
         <View className="mb-6 flex-row items-center justify-between">
@@ -497,9 +710,14 @@ const ExpenseTracker = () => {
     setSearchQuery(text);
   }, []);
 
-  const fiveMostRecent = [...expenses]
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    .slice(0, 6);
+  const tenMostRecent = [...expenses]
+    .sort((a, b) => {
+      // Use Appwrite's $createdAt for accurate document creation time
+      const dateA = new Date(a.$createdAt);
+      const dateB = new Date(b.$createdAt);
+      return dateB - dateA;
+    })
+    .slice(0, 10);
 
   if (isLoading) {
     return (
@@ -511,6 +729,7 @@ const ExpenseTracker = () => {
   }
   return (
     <View className="flex-1 p-4">
+
       {alert && (
         <FancyAlert
           isVisible={alert.visible}
@@ -524,13 +743,17 @@ const ExpenseTracker = () => {
       )}
 
       <FlatList
-        data={fiveMostRecent}
+        data={tenMostRecent}
         renderItem={({ item }) => (
           <ExpenseItem
             item={item}
             onLongPress={handleLongPress}
             isSelected={selectedItems.includes(item.$id)}
             onSelect={handleSelectItem}
+            onDelete={(item) => {
+              setSelectedItem(item);
+              setExpenseActionModalVisible(true);
+            }}
           />
         )}
         ListHeaderComponent={renderHeader}
@@ -547,7 +770,9 @@ const ExpenseTracker = () => {
         categories={categories}
         expense={newExpense}
         setExpense={setNewExpense}
+        scannedImage={scannedImage}
       />
+
 
       <CustomModal
         modalVisible={isCategoryModalVisible}
@@ -585,6 +810,12 @@ const ExpenseTracker = () => {
         primaryButtonText="Delete"
         onPrimaryPress={handleDeleteAllAction}
         onSecondaryPress={() => setDeleteModalVisible(false)}
+      />
+
+      <QRScanner
+        visible={isQRScannerVisible}
+        onClose={() => setQRScannerVisible(false)}
+        onScan={handleQRScan}
       />
     </View>
   );
