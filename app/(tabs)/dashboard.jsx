@@ -267,7 +267,7 @@ export default function Dashboard() {
       if (result.success) {
         showAlert("Success", result.message, "success");
       } else if (result.canceled) {
-        console.log("Save location selection canceled.");
+        // Save location selection canceled
       } else {
         showAlert("Error", result.message, "error");
       }
@@ -307,7 +307,7 @@ export default function Dashboard() {
     }
   };
 
-  // Transform category totals into PieChart data with percentages (no onPress for pie chart)
+  // Transform category totals into PieChart data with percentages and labels
   const pieChartData = useMemo(() => {
     const colors = [
       "#FF6384",
@@ -330,12 +330,17 @@ export default function Dashboard() {
       ([category, total], index) => {
         const percentage =
           totalExpenses > 0 ? (total / totalExpenses) * 100 : 0;
+        
+        // Create shortened category name for display
+        const shortName = category.length > 8 ? category.substring(0, 8) + '...' : category;
+        
         return {
-          value: percentage,
+          value: total, // Use actual value instead of percentage for better label visibility
           color: colors[index % colors.length],
-          text: category,
+          text: `${shortName}\n${percentage.toFixed(1)}%`,
+          labelText: `${category}: ${percentage.toFixed(1)}%`,
           rawTotal: total,
-          // Removed onPress from pie chart data
+          categoryName: category,
         };
       }
     );
@@ -348,6 +353,13 @@ export default function Dashboard() {
         0
       );
       data[largest].value += 100 - totalPercentage;
+      // Update the text with corrected percentage
+      const correctedPercentage = data[largest].value;
+      const shortName = data[largest].categoryName.length > 8 ? 
+        data[largest].categoryName.substring(0, 8) + '...' : 
+        data[largest].categoryName;
+      data[largest].text = `${shortName}\n${correctedPercentage.toFixed(1)}%`;
+      data[largest].labelText = `${data[largest].categoryName}: ${correctedPercentage.toFixed(1)}%`;
     }
 
     return data;
@@ -356,9 +368,8 @@ export default function Dashboard() {
   // Function to show detailed modal (only called from legend)
   const showDetailedModal = (item) => {
     const categoryExpenses = filteredExpenses.filter(
-      (expense) => expense.category?.category_name?.trim() === item.text.trim()
+      (expense) => expense.category?.category_name?.trim() === item.categoryName.trim()
     );
-    console.log("Category Expenses:", categoryExpenses); // Add this line
     setSelectedCategory({
       category: item.text,
       total: item.rawTotal,
@@ -575,16 +586,22 @@ export default function Dashboard() {
               </Text>
               <PieChart
                 data={pieChartData}
-                textColor="black"
-                textSize={14}
-                radius={150}
+                radius={120}
                 donut
-                innerRadius={60}
-                showValuesAsLabels
-                showTextBackground
-                textBackgroundColor="#fff"
-                textBackgroundRadius={20}
+                innerRadius={50}
                 animationDuration={800}
+                strokeColor="white"
+                strokeWidth={2}
+                centerLabelComponent={() => (
+                  <View style={{ alignItems: 'center' }}>
+                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333' }}>
+                      Total
+                    </Text>
+                    <Text style={{ fontSize: 14, color: '#666' }}>
+                      Rs {totalExpenses.toFixed(0)}
+                    </Text>
+                  </View>
+                )}
               />
               <Text
                 style={styles.chartTitle}
@@ -626,7 +643,7 @@ export default function Dashboard() {
                     />
                     <TouchableOpacity onPress={() => showDetailedModal(item)}>
                       <Text style={styles.legendText}>
-                        {item.text}: {item.value.toFixed(1)}% (Rs{" "}
+                        {item.categoryName}: {item.value.toFixed(1)}% (Rs{" "}
                         {item.rawTotal.toFixed(2)})
                       </Text>
                     </TouchableOpacity>
@@ -728,7 +745,11 @@ export default function Dashboard() {
                     key={expense.$id}
                     className="flex-row justify-between items-center bg-white p-4 mb-4 rounded-lg border border-gray-200 shadow-sm"
                   >
-                    <Text className="font-pmedium text-base text-gray-800 text-left flex-1 pr-2">
+                    <Text 
+                      className="font-pmedium text-base text-gray-800 text-left flex-1 pr-2"
+                      numberOfLines={3}
+                      ellipsizeMode="tail"
+                    >
                       {expense.description || "No description"}
                     </Text>
                     <View className="flex-col">

@@ -19,12 +19,10 @@ const GlobalProvider = ({ children }) => {
         setUser(currentUser.account);
         setuserdetails(currentUser.document);
         setIsLoggedIn(true);
-        console.log('User authenticated:', currentUser.account.email);
       } else {
         throw new Error('No valid user session');
       }
     } catch (error) {
-      console.log('Auth check failed:', error.message);
       setUser(null);
       setuserdetails(null);
       setIsLoggedIn(false);
@@ -34,7 +32,6 @@ const GlobalProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    console.log('GlobalProvider useEffect: Starting checkAuth');
     checkAuth().catch((error) => {
       console.error('checkAuth failed in useEffect:', error);
       setIsLoading(false);

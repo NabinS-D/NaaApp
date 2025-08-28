@@ -31,7 +31,9 @@ const CustomButton = ({
           <ActivityIndicator color="#fff" size="small" />
         ) : (
           <Text
-            className={`text-primary text-lg font-pregular ${textStyles}`}
+            className={`text-primary text-lg font-pregular text-center ${textStyles}`}
+            numberOfLines={1}
+            adjustsFontSizeToFit={true}
           >
             {title}
           </Text>

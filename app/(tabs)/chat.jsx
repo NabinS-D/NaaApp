@@ -136,8 +136,6 @@ export default function GroupChat() {
         await push(messagesRef, messageData);
 
         // Send OneSignal notification to all users except sender (use user account ID which matches OneSignal external ID)
-        console.log("Current user ID:", user?.$id);
-        console.log("OneSignal should exclude:", user?.$id);
         await sendChatNotification(newMessage, userdetails?.name || "Anonymous", user?.$id || "anonymous");
 
         setNewMessage("");
@@ -150,8 +148,6 @@ export default function GroupChat() {
   // Improved notification function using OneSignal directly
   const sendChatNotification = async (message, senderUsername, senderUserId) => {
     try {
-      console.log("Notification function - Sender ID to exclude:", senderUserId);
-      console.log("Notification function - Sender username:", senderUsername);
 
       const notificationData = {
         app_id: process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID,
@@ -184,8 +180,6 @@ export default function GroupChat() {
 
       if (!response.ok) {
         console.error("Notification failed:", await response.text());
-      } else {
-        console.log("Notification sent successfully");
       }
     } catch (error) {
       console.error("Error sending notification:", error);

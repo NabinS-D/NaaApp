@@ -17,6 +17,7 @@ const CustomModal = ({
   secondaryButtonText = "Cancel",
   onPrimaryPress,
   onSecondaryPress,
+  showPrimaryButton = true,
 }) => {
   const [loading, setLoading] = useState(false); // Track loading state
 
@@ -29,27 +30,28 @@ const CustomModal = ({
   if (!modalVisible) return null;
 
   return (
-    <SafeAreaView style={styles.centeredView}>
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={onSecondaryPress}
-      >
-        {/* Background Overlay */}
-        <View style={styles.overlay} />
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={modalVisible}
+      onRequestClose={onSecondaryPress}
+      statusBarTranslucent={true}
+    >
+      {/* Background Overlay */}
+      <View style={styles.overlay} />
 
-        {/* Modal Content */}
-        <View style={styles.modalContainer}>
-          <View style={styles.modalView}>
-            {title && (
-              <Text className="font-psemibold text-center mb-4 text-xl">
-                {title}
-              </Text>
-            )}
-            {children}
+      {/* Modal Content */}
+      <View style={styles.modalContainer}>
+        <View style={styles.modalView}>
+          {title && (
+            <Text className="font-psemibold text-center mb-4 text-xl">
+              {title}
+            </Text>
+          )}
+          {children}
 
-            <View style={styles.buttonContainer}>
+          <View style={styles.buttonContainer}>
+            {showPrimaryButton && (
               <TouchableOpacity
                 style={[
                   styles.button,
@@ -63,27 +65,27 @@ const CustomModal = ({
                 {loading ? (
                   <ActivityIndicator size="small" color="#ffffff" />
                 ) : (
-                  <Text className="text-white font-psemibold text-base items-center justify-center">
+                  <Text className="text-white font-psemibold text-base text-center">
                     {primaryButtonText}
                   </Text>
                 )}
               </TouchableOpacity>
+            )}
 
-              <TouchableOpacity
-                style={[styles.button, styles.buttonSecondary]}
-                onPress={onSecondaryPress}
-                activeOpacity={0.7}
-                disabled={loading}
-              >
-                <Text className="text-black font-psemibold text-base items-center justify-center">
-                  {secondaryButtonText}
-                </Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={[styles.button, styles.buttonSecondary]}
+              onPress={onSecondaryPress}
+              activeOpacity={0.7}
+              disabled={loading}
+            >
+              <Text className="text-black font-psemibold text-base text-center">
+                {secondaryButtonText}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
-      </Modal>
-    </SafeAreaView>
+      </View>
+    </Modal>
   );
 };
 
@@ -126,7 +128,8 @@ const styles = StyleSheet.create({
   },
   button: {
     borderRadius: 10,
-    padding: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     elevation: 2,
     flex: 1,
     alignItems: "center",
