@@ -8,9 +8,11 @@ import FormFields from "../../../components/FormFields.jsx";
 import {
   categoryByID,
   deleteCategoryByID,
+  deleteCategoryWithExpenses,
   fetchAllCategories,
   handleEditCategory,
 } from "../../../lib/APIs/CategoryApi.js";
+import { expensesOfCategory } from "../../../lib/APIs/ExpenseApi.js";
 import useAlertContext from "../../../context/AlertProvider.js";
 import { ActivityIndicator } from "react-native";
 
@@ -94,7 +96,7 @@ const EditModal = memo(
 );
 
 // Memoized Delete Modal Component
-const DeleteModal = memo(({ visible, onClose, onDelete }) => (
+const DeleteModal = memo(({ visible, onClose, onDelete, expenseCount }) => (
   <CustomModal
     modalVisible={visible}
     onSecondaryPress={onClose}
@@ -103,9 +105,14 @@ const DeleteModal = memo(({ visible, onClose, onDelete }) => (
     secondaryButtonText="Cancel"
     onPrimaryPress={onDelete}
   >
-    <Text className="font-pmedium">
-      Are you sure you want to delete this category?
-    </Text>
+    <View>
+      <Text className="font-pmedium mb-2">
+        {expenseCount > 0 
+          ? `Are you sure you want to delete this category and its ${expenseCount} related expense${expenseCount > 1 ? 's' : ''}?`
+          : "Are you sure you want to delete this category?"
+        }
+      </Text>
+    </View>
   </CustomModal>
 ));
 
@@ -116,12 +123,13 @@ const CategoryList = () => {
   const [isDeleteVisible, setIsDeleteVisible] = useState(false);
   const [isEditVisible, setIsEditVisible] = useState(false);
   const [newCategory, setNewCategory] = useState({
-    categoryId: "",
     categoryname: "",
+    categoryId: "",
   });
   const [currentCategoryId, setCurrentCategoryId] = useState(null);
+  const [expenseCount, setExpenseCount] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(false);
 
   // Memoized fetch categories function
   const fetchCategories = useCallback(async () => {
@@ -184,19 +192,21 @@ const CategoryList = () => {
     }
   }, [newCategory, fetchCategories]);
 
-  // Memoized delete handler
+  // Memoized delete handler with cascade deletion
   const handleDelete = useCallback(
     async (categoryId) => {
       try {
-        const response = await deleteCategoryByID(categoryId);
-        if (response) {
-          showAlert("Success", "Category deleted successfully", "success");
+        const result = await deleteCategoryWithExpenses(categoryId);
+        if (result.success) {
+          const message = result.deletedExpenses > 0 
+            ? `Category deleted successfully along with ${result.deletedExpenses} related expense(s)`
+            : "Category deleted successfully";
+          showAlert("Success", message, "success");
           setIsDeleteVisible(false);
           await fetchCategories();
-         
         }
       } catch (error) {
-        showAlert("Error", "Failed to delete category!", "error");
+        showAlert("Error", `Failed to delete category: ${error.message}`, "error");
       }
     },
     [fetchCategories]
@@ -237,9 +247,16 @@ const CategoryList = () => {
                 key={category.$id}
                 category={category}
                 onEdit={handleEdit}
-                onDelete={(id) => {
+                onDelete={async (id) => {
                   setCurrentCategoryId(id);
-                  setIsDeleteVisible(true);
+                  // Check for related expenses before showing delete modal
+                  try {
+                    const categoryExpenses = await expensesOfCategory(id);
+                    setExpenseCount(categoryExpenses.length);
+                    setIsDeleteVisible(true);
+                  } catch (error) {
+                    showAlert("Error", "Failed to check category expenses", "error");
+                  }
                 }}
               />
             ))
@@ -262,6 +279,7 @@ const CategoryList = () => {
           visible={isDeleteVisible}
           onClose={() => setIsDeleteVisible(false)}
           onDelete={() => handleDelete(currentCategoryId)}
+          expenseCount={expenseCount}
         />
       </ScrollView>
       )}

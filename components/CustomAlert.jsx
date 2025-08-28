@@ -102,9 +102,21 @@ const FancyAlert = ({
             <View style={styles.iconContainer}>{getIcon()}</View>
             <View style={styles.textContainer}>
               {title && (
-                <Text className="font-psemibold" style={[styles.title, styles[variant].title]}>{title}</Text>
+                <Text 
+                  className="font-psemibold" 
+                  style={[styles.title, styles[variant].title]}
+                  numberOfLines={2}
+                  ellipsizeMode="tail"
+                >
+                  {title}
+                </Text>
               )}
-              <Text className="font-pmedium" style={[styles.message, styles[variant].message]}>
+              <Text 
+                className="font-pmedium" 
+                style={[styles.message, styles[variant].message]}
+                numberOfLines={3}
+                ellipsizeMode="tail"
+              >
                 {message}
               </Text>
             </View>

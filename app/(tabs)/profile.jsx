@@ -43,7 +43,6 @@ const HeaderButtons = memo(({ handlePasswordChange }) => (
 ));
 // Memoized components for better performance
 const ProfileImage = memo(({ uri, isUploading, onPress }) => {
-  console.log("ProfileImage URI:", uri);
   return (
     <View style={styles.profileSection}>
       <TouchableOpacity onPress={onPress} disabled={isUploading}>
@@ -55,12 +54,10 @@ const ProfileImage = memo(({ uri, isUploading, onPress }) => {
             end={{ x: 1, y: 1 }}
           >
             <View style={styles.profileImageInner}>
-              <Image 
-                style={styles.profileImage} 
-                source={uri ? { uri } : require('../../assets/images/profile.png')} 
+              <Image
+                style={styles.profileImage}
+                source={uri ? { uri } : require('../../assets/images/profile.png')}
                 resizeMode="cover"
-                onError={(error) => console.log("Image load error:", error.nativeEvent.error)}
-                onLoad={() => console.log("Image loaded successfully")}
                 defaultSource={require('../../assets/images/profile.png')}
               />
             </View>
@@ -102,20 +99,20 @@ const UserDetails = memo(
             />
           </View>
         </View>
-        
+
         <View style={styles.detailsGrid}>
           <View style={styles.detailItem}>
             <Ionicons name="person-outline" size={18} color="#E5E7EB" />
             <Text style={styles.detailLabel}>Role</Text>
             <Text style={styles.detailValue}>{labels?.[0] ?? "User"}</Text>
           </View>
-          
+
           <View style={styles.detailItem}>
             <Ionicons name="mail-outline" size={18} color="#E5E7EB" />
             <Text style={styles.detailLabel}>Email</Text>
             <Text style={styles.detailValue}>{email}</Text>
           </View>
-          
+
           <View style={styles.detailItem}>
             <Ionicons name="finger-print-outline" size={18} color="#E5E7EB" />
             <Text style={styles.detailLabel}>User ID</Text>
@@ -167,7 +164,6 @@ export default function Profile() {
   const [localAvatar, setLocalAvatar] = useState(userdetails?.avatar);
 
   useEffect(() => {
-    console.log("User Avator:", userdetails.avatar);
     if (userdetails?.avatar) {
       setLocalAvatar(userdetails.avatar);
     }
@@ -396,7 +392,7 @@ export default function Profile() {
                 )}
               </LinearGradient>
             </TouchableOpacity>
-            
+
             <HeaderButtons
               handlePasswordChange={() => setPasswordChangeModalVisible(true)}
             />
@@ -453,6 +449,7 @@ export default function Profile() {
           </CustomModal>
         </View>
       )}
+
     </SafeAreaView>
   );
 }

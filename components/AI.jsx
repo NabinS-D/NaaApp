@@ -15,7 +15,12 @@ import {
   ActivityIndicator,
   Image,
   Alert,
+  Pressable,
+  Modal,
 } from "react-native";
+import * as MediaLibrary from 'expo-media-library';
+import * as FileSystem from 'expo-file-system';
+import CustomModal from './CustomModal';
 import { ID } from "react-native-appwrite";
 import { useGlobalContext } from "../context/GlobalProvider.js";
 import { config, databases } from "../lib/AIconfig.js";
@@ -38,6 +43,9 @@ const AIChat = () => {
   const [inputText, setInputText] = useState("");
   const [isLoadingChatHistory, setIsLoadingChatHistory] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [selectedImageUri, setSelectedImageUri] = useState(null);
+  const [isDownloading, setIsDownloading] = useState(false);
   const flatListRef = useRef(null);
 
   // Fetch chat history
@@ -89,8 +97,8 @@ const AIChat = () => {
       // Encode prompt for URL
       const encodedPrompt = encodeURIComponent(prompt);
 
-      // Pollinations.ai API - much faster and better quality
-      const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=512&height=512&model=flux&enhance=true&nologo=true`;
+      // Pollinations.ai API - much faster and better quality (HD: 1024x1024)
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&model=flux&enhance=true&nologo=true`;
 
       // Fetch the image
       const response = await fetch(imageUrl);
@@ -186,6 +194,85 @@ const AIChat = () => {
     }
   }, [inputText, isLoading, generateImage, saveToDatabase]);
 
+  // Image download functionality
+  const handleImageLongPress = useCallback((imageUri) => {
+    setSelectedImageUri(imageUri);
+    setShowDownloadModal(true);
+  }, []);
+
+  const downloadImage = async () => {
+    setIsDownloading(true);
+
+    try {
+      // Check if we already have permissions
+      let { status } = await MediaLibrary.getPermissionsAsync();
+
+      // Only request if we don't have permissions
+      if (status !== 'granted') {
+        const permissionResult = await MediaLibrary.requestPermissionsAsync();
+        status = permissionResult.status;
+      }
+
+      if (status !== 'granted') {
+        showAlert(
+          'Permission Required',
+          'Please grant media library access to download images.',
+          'error'
+        );
+        setIsDownloading(false);
+        return;
+      }
+
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `NaaApp_Generated_${timestamp}.jpg`;
+      const fileUri = `${FileSystem.documentDirectory}${filename}`;
+
+      // Handle base64 images vs URL images
+      let downloadResult;
+      if (selectedImageUri.startsWith('data:')) {
+        // For base64 images, write directly to file
+        const base64Data = selectedImageUri.split(',')[1];
+        await FileSystem.writeAsStringAsync(fileUri, base64Data, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        downloadResult = { status: 200, uri: fileUri };
+      } else {
+        // For URL images, download normally
+        downloadResult = await FileSystem.downloadAsync(selectedImageUri, fileUri);
+      }
+
+      if (downloadResult.status === 200) {
+        // Save to media library without creating album (reduces permission prompts)
+        await MediaLibrary.createAssetAsync(downloadResult.uri);
+
+        showAlert(
+          'Success',
+          'Image downloaded successfully to your gallery!',
+          'success'
+        );
+      } else {
+        throw new Error('Download failed');
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      showAlert(
+        'Download Failed',
+        'Could not download the image. Please try again.',
+        'error'
+      );
+    } finally {
+      setIsDownloading(false);
+      setShowDownloadModal(false);
+      setSelectedImageUri(null);
+    }
+  };
+
+  const cancelDownload = useCallback(() => {
+    setShowDownloadModal(false);
+    setSelectedImageUri(null);
+  }, []);
+
   // UI Components
   const MessageItem = useMemo(
     () =>
@@ -193,22 +280,28 @@ const AIChat = () => {
       (
         <View
           className={`max-w-[80%] my-1 p-3 rounded-xl ${item.sender === "user"
-              ? "self-end bg-blue-500 rounded-br-sm"
-              : "self-start bg-gray-200 rounded-bl-sm"
+            ? "self-end bg-blue-500 rounded-br-sm"
+            : "self-start bg-gray-200 rounded-bl-sm"
             }`}
         >
           <Text
             className={`text-base ${item.sender === "user" ? "text-white" : "text-black"
               }`}
+            style={{ flexShrink: 1 }}
           >
             {item.text}
           </Text>
           {item.imageData && (
-            <Image
-              source={{ uri: item.imageData }}
-              className="w-48 h-48 mt-3 rounded-xl"
-              resizeMode="contain"
-            />
+            <Pressable
+              onLongPress={() => handleImageLongPress(item.imageData)}
+              delayLongPress={500}
+            >
+              <Image
+                source={{ uri: item.imageData }}
+                className="w-48 h-48 mt-3 rounded-xl"
+                resizeMode="contain"
+              />
+            </Pressable>
           )}
           <Text className="text-xs text-black mt-1 self-end">
             {new Date(item.timestamp).toLocaleTimeString()}
@@ -264,6 +357,20 @@ const AIChat = () => {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Download Confirmation Modal */}
+      <CustomModal
+        title="Download Image"
+        modalVisible={showDownloadModal}
+        primaryButtonText="Download"
+        secondaryButtonText="Cancel"
+        onPrimaryPress={downloadImage}
+        onSecondaryPress={cancelDownload}
+      >
+        <Text className="text-base text-center text-gray-600 mb-4">
+          Do you want to download this HD image to your gallery?
+        </Text>
+      </CustomModal>
     </KeyboardAvoidingView>
   );
 };

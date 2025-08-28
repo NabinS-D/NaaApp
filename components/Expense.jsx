@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, memo, useMemo } from "react";
+import React, { useState, useEffect, useCallback, memo, useMemo, useRef } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
   View,
@@ -8,29 +8,25 @@ import {
   RefreshControl,
   ActivityIndicator,
   TextInput,
-  ScrollView,
   Image,
+  Pressable,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { router } from "expo-router";
 import * as ImagePicker from 'expo-image-picker';
-import * as ImageManipulator from 'expo-image-manipulator';
+import ImagePickerComponent from './ImagePickerComponent';
+import * as MediaLibrary from 'expo-media-library';
+import * as FileSystem from 'expo-file-system';
 import { useGlobalContext } from "../context/GlobalProvider.js";
 import CustomModal from "./CustomModal.jsx";
-import {
-  addExpenses,
-  deleteAllExpensesById,
-  deleteExpenseById,
-  fetchAllExpenses,
-} from "../lib/APIs/ExpenseApi.js";
-import { addCategory, fetchAllCategories } from "../lib/APIs/CategoryApi.js";
+import { addExpenses, deleteExpenseById, getReceiptImageUrl, fetchAllExpenses, deleteAllExpensesById } from "../lib/APIs/ExpenseApi";
+import { addaCategory, fetchAllCategories } from "../lib/APIs/CategoryApi.js";
 import CustomButton from "./CustomButton.jsx";
 import FormFields from "./FormFields.jsx";
 import FancyAlert from "./CustomAlert.jsx";
 import useAlertContext from "../context/AlertProvider.js";
 import { processImageWithOCR, parseOCRText } from "../lib/ocr.js";
 import QRScanner from "./QRScanner.jsx";
-import icons from "../constants/icons.js";
 
 // Memoized Header Buttons Component
 const HeaderButtons = memo(({ onAddExpense, onAddCategory, onListCategories, onScanReceipt, onScanQR }) => (
@@ -58,18 +54,18 @@ const HeaderButtons = memo(({ onAddExpense, onAddCategory, onListCategories, onS
         textStyles="text-white text-xs text-center"
       />
     </View>
-    
+
     {/* Scan Actions */}
     <View className="flex-row justify-center items-center gap-4">
-      <TouchableOpacity 
+      <TouchableOpacity
         onPress={onScanReceipt}
         className="flex-row items-center gap-1 bg-cyan-100 px-3 py-2 rounded-lg"
       >
         <MaterialIcons name="camera-alt" size={18} color="#0891b2" />
         <Text className="text-cyan-700 text-xs font-pmedium">Scan Receipt</Text>
       </TouchableOpacity>
-      
-      <TouchableOpacity 
+
+      <TouchableOpacity
         onPress={onScanQR}
         className="flex-row items-center gap-1 bg-purple-100 px-3 py-2 rounded-lg"
       >
@@ -126,7 +122,7 @@ const CategoriesList = memo(({ categories, categoryTotals }) => {
 });
 
 // Memoized Expense Item Component
-const ExpenseItem = memo(({ item, onLongPress, isSelected, onSelect, onDelete }) => {
+const ExpenseItem = memo(({ item, onLongPress, isSelected, onSelect, onDelete, onViewReceipt }) => {
   const formatDate = (timestamp) => {
     const date = new Date(timestamp);
     return date.toLocaleString("en-US", {
@@ -151,7 +147,26 @@ const ExpenseItem = memo(({ item, onLongPress, isSelected, onSelect, onDelete })
             size={24}
             color="#4630EB"
           />
-          <Text className="font-pmedium flex-shrink-1">{item.description}</Text>
+          <View className="flex-1">
+            <Text
+              className="font-pmedium"
+              numberOfLines={2}
+              ellipsizeMode="tail"
+            >
+              {item.description}
+            </Text>
+            {item.receiptImage && (
+              <TouchableOpacity
+                className="flex-row items-center mt-1"
+                onPress={() => {
+                  onViewReceipt(item.receiptImage);
+                }}
+              >
+                <MaterialIcons name="image" size={14} color="#10B981" />
+                <Text className="text-green-600 text-xs ml-1 underline">View receipt</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
         <View className="flex-row items-center gap-3">
           <View className="items-end">
@@ -179,6 +194,7 @@ const AddExpenseModal = memo(
     expense,
     setExpense,
     scannedImage,
+    handleImageSelected,
   }) => (
     <CustomModal
       modalVisible={visible}
@@ -248,12 +264,34 @@ const AddExpenseModal = memo(
           inputProps={{ type: "date" }} // HTML5 date picker
         />
 
-        {scannedImage && (
-          <Image
-            source={{ uri: scannedImage }}
-            style={{ width: "100%", height: 200, resizeMode: "contain" }}
+        {/* Image Upload Section */}
+        <View className="mb-4">
+          <Text className="text-gray-800 font-pmedium text-base mb-2">
+            Receipt Image (Optional)
+          </Text>
+
+          <ImagePickerComponent
+            onImageSelected={handleImageSelected}
+            quality={0.8}
+            aspect={[4, 3]}
           />
-        )}
+
+          {(expense.receiptImage || scannedImage) && (
+            <View className="relative">
+              <Image
+                source={{ uri: expense.receiptImage?.uri || expense.receiptImage || scannedImage }}
+                style={{ width: "100%", height: 150, borderRadius: 8 }}
+                resizeMode="cover"
+              />
+              <TouchableOpacity
+                onPress={() => setExpense({ ...expense, receiptImage: null })}
+                className="absolute top-2 right-2 bg-red-500 rounded-full p-1"
+              >
+                <MaterialIcons name="close" size={16} color="white" />
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
       </View>
     </CustomModal>
   )
@@ -270,6 +308,7 @@ const ExpenseTracker = () => {
     description: "",
     categoryId: "",
     date: new Date().toISOString().split("T")[0], // Default to today
+    receiptImage: null,
   });
   const [isExpenseActionModalVisible, setExpenseActionModalVisible] =
     useState(false);
@@ -279,12 +318,31 @@ const ExpenseTracker = () => {
   const { showAlert, alert } = useAlertContext();
 
   const [selectedItems, setSelectedItems] = useState([]);
+  const selectedItemsRef = useRef([]);
   const [selectAll, setSelectAll] = useState(false);
   const [deleteAll, setDeleteAll] = useState(false);
   const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [scannedImage, setScannedImage] = useState(null);
   const [isQRScannerVisible, setQRScannerVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedReceiptImage, setSelectedReceiptImage] = useState(null);
+  const [isReceiptImageModalVisible, setReceiptImageModalVisible] = useState(false);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [selectedImageForDownload, setSelectedImageForDownload] = useState(null);
+
+  // Image picker function using reusable component
+  const [showImagePicker, setShowImagePicker] = useState(false);
+
+  const handleImageSelected = useCallback((asset) => {
+    // Store the complete asset information for proper upload
+    setNewExpense({ ...newExpense, receiptImage: asset });
+  }, [newExpense]);
+
+  const pickImage = useCallback((source) => {
+    // For backward compatibility, we'll show the picker modal
+    setShowImagePicker(true);
+  }, []);
 
   // Memoized category totals calculation
   const categoryTotals = React.useMemo(() => {
@@ -336,6 +394,94 @@ const ExpenseTracker = () => {
     }
   }, [fetchData]);
 
+  // Handle viewing receipt images
+  const handleViewReceipt = useCallback((receiptImageId) => {
+    const imageUrl = getReceiptImageUrl(receiptImageId);
+    if (imageUrl) {
+      setSelectedReceiptImage(imageUrl);
+      setReceiptImageModalVisible(true);
+    } else {
+      showAlert('Error', 'Failed to load receipt image', 'error');
+    }
+  }, [showAlert]);
+
+  // Image download functionality for expense receipts
+  const handleImageLongPress = useCallback((imageUri) => {
+    setSelectedImageForDownload(imageUri);
+    setShowDownloadModal(true);
+  }, []);
+
+  const downloadExpenseImage = useCallback(async () => {
+    if (!selectedImageForDownload) return;
+
+    try {
+      // Check if we already have permissions
+      let { status } = await MediaLibrary.getPermissionsAsync();
+      
+      // Only request if we don't have permissions
+      if (status !== 'granted') {
+        const permissionResult = await MediaLibrary.requestPermissionsAsync();
+        status = permissionResult.status;
+      }
+      
+      if (status !== 'granted') {
+        showAlert(
+          'Permission Required',
+          'Please grant media library access to download images.',
+          'error'
+        );
+        return;
+      }
+
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `NaaApp_Receipt_${timestamp}.jpg`;
+      const fileUri = `${FileSystem.documentDirectory}${filename}`;
+
+      // Handle base64 images vs URL images
+      let downloadResult;
+      if (selectedImageForDownload.startsWith('data:')) {
+        // For base64 images, write directly to file
+        const base64Data = selectedImageForDownload.split(',')[1];
+        await FileSystem.writeAsStringAsync(fileUri, base64Data, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        downloadResult = { status: 200, uri: fileUri };
+      } else {
+        // For URL images, download normally
+        downloadResult = await FileSystem.downloadAsync(selectedImageForDownload, fileUri);
+      }
+
+      if (downloadResult.status === 200) {
+        // Save to media library without creating album (reduces permission prompts)
+        await MediaLibrary.createAssetAsync(downloadResult.uri);
+
+        showAlert(
+          'Success',
+          'Receipt image downloaded successfully to your gallery!',
+          'success'
+        );
+      } else {
+        throw new Error('Download failed');
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      showAlert(
+        'Download Failed',
+        'Could not download the receipt image. Please try again.',
+        'error'
+      );
+    } finally {
+      setShowDownloadModal(false);
+      setSelectedImageForDownload(null);
+    }
+  }, [selectedImageForDownload, showAlert]);
+
+  const cancelDownload = useCallback(() => {
+    setShowDownloadModal(false);
+    setSelectedImageForDownload(null);
+  }, []);
+
   const addCategory = useCallback(async () => {
     if (!newCategory.name.trim()) {
       showAlert("Validation Error", "Category name cannot be empty.", "error");
@@ -343,7 +489,7 @@ const ExpenseTracker = () => {
     }
 
     try {
-      await addCategory(newCategory, userdetails.$id);
+      await addaCategory(newCategory, userdetails.$id);
       setNewCategory({ name: "" });
       showAlert("Success", "Category added successfully!");
       setCategoryModalVisible(false);
@@ -403,16 +549,22 @@ const ExpenseTracker = () => {
       // Prepare expense data with proper amount conversion
       const expenseToAdd = {
         ...newExpense,
-        amount: amountValue // Use the validated numeric value (float)
+        amount: amountValue,
       };
-      
+
       await addExpenses(expenseToAdd, userdetails.$id);
-      setNewExpense({ amount: "", description: "", categoryId: "", date: "" });
+      setNewExpense({
+        amount: "",
+        description: "",
+        categoryId: "",
+        date: new Date().toISOString().split("T")[0],
+        receiptImage: null
+      });
+      setScannedImage(null);
       showAlert("Success", "Expense added successfully!", "success");
       setExpenseModalVisible(false);
       await fetchData();
     } catch (error) {
-      console.log(`Failed to add expense! ${error.message}`)
       showAlert("Error", `Failed to add expense! ${error.message}`, "error");
     }
   }, [newExpense, userdetails.$id, fetchData, showAlert]);
@@ -433,12 +585,14 @@ const ExpenseTracker = () => {
   }, [selectedItem, fetchData, showAlert]);
 
   const handleDeleteAllAction = useCallback(async () => {
+    // Use ref instead of state to get current selected items
+    const currentSelectedItems = selectedItemsRef.current;
+
     // Check if selectedItems is empty (either null, undefined, empty array, or not an array)
-    console.log(selectedItems)
     if (
-      !selectedItems ||
-      !Array.isArray(selectedItems) ||
-      selectedItems.length === 0
+      !currentSelectedItems ||
+      !Array.isArray(currentSelectedItems) ||
+      currentSelectedItems.length === 0
     ) {
       showAlert("Error", "Please select an entry to delete!", "error");
       setDeleteModalVisible(false);
@@ -446,18 +600,25 @@ const ExpenseTracker = () => {
     }
 
     try {
-      await deleteAllExpensesById(selectedItems);
+      await deleteAllExpensesById(currentSelectedItems);
       showAlert("Success", "Expenses deleted successfully!", "success");
       setDeleteModalVisible(false);
+      setSelectedItems([]); // Clear selections after successful delete
+      selectedItemsRef.current = []; // Clear ref as well
       await fetchData();
     } catch (error) {
-      showAlert("Error", "Failed to delete all expenses!", "error");
+      showAlert("Error", "Failed to delete the selected expenses!", "error");
     } finally {
       setDeleteModalVisible(false);
     }
-  }, [fetchData, showAlert, selectedItems]);
+  }, [fetchData, showAlert]);
 
   const handleLongPress = useCallback((item) => {
+    setSelectedItem(item);
+    setExpenseActionModalVisible(true);
+  }, []);
+
+  const handleDeletePress = useCallback((item) => {
     setSelectedItem(item);
     setExpenseActionModalVisible(true);
   }, []);
@@ -480,32 +641,57 @@ const ExpenseTracker = () => {
     setSelectedItems((prevSelectedItems) => {
       const index = prevSelectedItems.indexOf(item.$id);
       if (index === -1) {
-        return [...prevSelectedItems, item.$id]; // Add item to selection
+        const newItems = [...prevSelectedItems, item.$id];
+        selectedItemsRef.current = newItems; // Keep ref in sync
+        return newItems; // Add item to selection
       } else {
-        return prevSelectedItems.filter((id) => id !== item.$id); // Remove item from selection
+        const newItems = prevSelectedItems.filter((id) => id !== item.$id);
+        selectedItemsRef.current = newItems; // Keep ref in sync
+        return newItems; // Remove item from selection
       }
     });
   }, []);
 
-  const handleDeleteAllExpenses = () => {
-    if (selectedItems) {
+  // Sync selectAll state with selectedItems
+  useEffect(() => {
+    if (expenses.length > 0) {
+      setSelectAll(selectedItems.length === expenses.length);
+    } else {
+      setSelectAll(false);
+    }
+  }, [selectedItems.length, expenses.length]);
+
+  // Preserve selectedItems during data loading
+  useEffect(() => {
+    // Only clear selectedItems if expenses array changes significantly (not just during loading)
+    if (expenses.length > 0 && selectedItems.length > 0) {
+      // Filter out any selected items that no longer exist in the current expenses
+      const validSelectedItems = selectedItems.filter(id =>
+        expenses.some(expense => expense.$id === id)
+      );
+      if (validSelectedItems.length !== selectedItems.length) {
+        setSelectedItems(validSelectedItems);
+      }
+    }
+  }, [expenses]);
+
+  const handleDeleteAllExpenses = useCallback(() => {
+    if (selectedItemsRef.current && selectedItemsRef.current.length > 0) {
       setDeleteAll(true);
       setDeleteModalVisible(true);
+    } else {
+      showAlert("Error", "Please select expenses to delete!", "error");
     }
-  };
+  }, [showAlert]);
 
   const handleScanReceipt = async () => {
-    console.log('=== RECEIPT SCAN STARTED ===');
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      console.log('Camera permission status:', status);
       if (status !== 'granted') {
-        console.log('Camera permission denied');
         showAlert('Permission Denied', 'Camera access is required to scan receipts.');
         return;
       }
 
-      console.log('Launching camera...');
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         quality: 0.5,
@@ -513,18 +699,13 @@ const ExpenseTracker = () => {
       });
 
       if (result.canceled) {
-        console.log('Camera canceled by user');
         return;
       }
 
       const imageUri = result.assets[0].uri;
-      console.log('Image captured successfully:', imageUri);
-      console.log('Image size:', result.assets[0].fileSize || 'Unknown');
       setScannedImage(imageUri);
       setIsLoading(true);
 
-      console.log('=== IMAGE PROCESSING STARTED ===');
-      console.log('Resizing and enhancing image for OCR...');
       const manipResult = await ImageManipulator.manipulateAsync(
         result.assets[0].uri,
         [
@@ -534,20 +715,10 @@ const ExpenseTracker = () => {
         ],
         { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG, base64: true }
       );
-      console.log('Image manipulation completed');
-
-      console.log('=== OCR PROCESSING STARTED ===');
       let parsedData = {};
       try {
-        console.log('Calling processImageWithOCR...');
         const ocrText = await processImageWithOCR(manipResult.base64);
-        console.log('=== OCR RESPONSE ===');
-        console.log('Full OCR Text:', ocrText);
-        console.log('OCR text length:', ocrText?.length || 0);
-
-        console.log('=== PARSING OCR TEXT ===');
         parsedData = parseOCRText(ocrText);
-        console.log('Parsed data result:', JSON.stringify(parsedData, null, 2));
       } catch (ocrError) {
         console.error('=== OCR PROCESS ERROR ===');
         console.error('Error type:', ocrError.name);
@@ -557,27 +728,23 @@ const ExpenseTracker = () => {
         parsedData = {};
       }
 
-      console.log('=== SETTING UP EXPENSE FORM ===');
       // Set up the form with OCR data or defaults
       const expenseData = {
         amount: parsedData.amount ? parseFloat(parsedData.amount).toString() : '',
         description: parsedData.description || (parsedData.amount ? 'Scanned Receipt' : 'Receipt (Manual Entry)'),
         date: parsedData.date || new Date().toISOString().split('T')[0],
       };
-      console.log('Setting expense data:', expenseData);
-      
+
       setNewExpense(prev => ({
         ...prev,
         ...expenseData
       }));
 
       setExpenseModalVisible(true);
-      
+
       if (parsedData.amount) {
-        console.log('OCR SUCCESS: Amount detected');
         showAlert('Success', `Receipt scanned successfully! Amount detected: Rs ${parsedData.amount}`);
       } else {
-        console.log('OCR PARTIAL: No amount detected');
         showAlert('Info', 'Receipt captured. Please enter the amount manually.');
       }
     } catch (error) {
@@ -587,50 +754,36 @@ const ExpenseTracker = () => {
       console.error('Full error:', error);
       showAlert('OCR Error', `Failed to scan receipt: ${error.message}`);
     } finally {
-      console.log('=== RECEIPT SCAN COMPLETED ===');
       setIsLoading(false);
     }
   };
 
   const handleQRScan = (data, type) => {
-    console.log('=== QR SCAN RESULT ===');
-    console.log('QR Scan Data:', JSON.stringify(data, null, 2));
-    console.log('QR Scan Type:', type);
-    console.log('Raw data available:', !!data.rawData);
-    console.log('Amount available:', !!data.amount);
-    
     setQRScannerVisible(false);
-    
+
     if (type === 'qr' && data.amount) {
-      console.log('Processing expense QR code...');
       // Handle expense QR code
       const expenseData = {
         amount: String(data.amount),
         description: data.description || 'QR Code Expense',
         date: data.date || new Date().toISOString().split('T')[0],
       };
-      console.log('Setting QR expense data:', expenseData);
-      
+
       setNewExpense(prev => ({
         ...prev,
         ...expenseData
       }));
-      
+
       setExpenseModalVisible(true);
       showAlert('Success', `QR code scanned successfully! Amount: Rs ${data.amount}`);
     } else {
-      console.log('Processing generic QR code...');
       // Handle other QR codes or text
       const content = data.rawData || JSON.stringify(data);
-      console.log('Generic QR content:', content);
       showAlert('Info', `QR Code Content: ${content}`);
     }
-    console.log('=== QR SCAN PROCESSING COMPLETED ===');
   };
 
   const handleScanQRPress = () => {
-    console.log('=== QR SCAN INITIATED ===');
-    console.log('Opening QR scanner...');
     setQRScannerVisible(true);
   };
 
@@ -750,10 +903,8 @@ const ExpenseTracker = () => {
             onLongPress={handleLongPress}
             isSelected={selectedItems.includes(item.$id)}
             onSelect={handleSelectItem}
-            onDelete={(item) => {
-              setSelectedItem(item);
-              setExpenseActionModalVisible(true);
-            }}
+            onDelete={handleDeletePress}
+            onViewReceipt={handleViewReceipt}
           />
         )}
         ListHeaderComponent={renderHeader}
@@ -771,6 +922,7 @@ const ExpenseTracker = () => {
         expense={newExpense}
         setExpense={setNewExpense}
         scannedImage={scannedImage}
+        handleImageSelected={handleImageSelected}
       />
 
 
@@ -817,6 +969,61 @@ const ExpenseTracker = () => {
         onClose={() => setQRScannerVisible(false)}
         onScan={handleQRScan}
       />
+
+      {/* Receipt Image Modal */}
+      <CustomModal
+        modalVisible={isReceiptImageModalVisible}
+        onSecondaryPress={() => {
+          setReceiptImageModalVisible(false);
+          setSelectedReceiptImage(null);
+        }}
+        title="Receipt Image"
+        secondaryButtonText="Close"
+        showPrimaryButton={false}
+      >
+        <View className="w-full items-center">
+          <Text className="text-sm text-gray-600 mb-2">
+            Image URL: {selectedReceiptImage ? 'Available' : 'None'}
+          </Text>
+          {selectedReceiptImage ? (
+            <Pressable
+              onLongPress={() => handleImageLongPress(selectedReceiptImage)}
+              delayLongPress={500}
+            >
+              <Image
+                source={{ uri: selectedReceiptImage }}
+                style={{
+                  width: 300,
+                  height: 400,
+                  borderRadius: 8,
+                  resizeMode: 'contain'
+                }}
+              />
+            </Pressable>
+          ) : (
+            <Text className="text-red-500">No image URL available</Text>
+          )}
+          {selectedReceiptImage && (
+            <Text className="text-xs text-gray-500 mt-2 text-center">
+              Long press image to download
+            </Text>
+          )}
+        </View>
+      </CustomModal>
+
+      {/* Download Confirmation Modal */}
+      <CustomModal
+        title="Download Receipt Image"
+        modalVisible={showDownloadModal}
+        primaryButtonText="Download"
+        secondaryButtonText="Cancel"
+        onPrimaryPress={downloadExpenseImage}
+        onSecondaryPress={cancelDownload}
+      >
+        <Text className="text-base text-center text-gray-600 mb-4">
+          Do you want to download this receipt image to your gallery?
+        </Text>
+      </CustomModal>
     </View>
   );
 };

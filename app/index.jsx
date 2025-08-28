@@ -43,21 +43,16 @@ export default function App() {
         await OneSignal.Notifications.requestPermission(true);
         const hasPermission =
           await OneSignal.Notifications.getPermissionAsync();
-        console.log("Notification permission status:", hasPermission);
 
         // Get device state information (v5.x methods)
         const onesignalId = await OneSignal.User.getOnesignalId();
         const pushToken = await OneSignal.User.pushSubscription.getTokenAsync();
         const isSubscribed =
           await OneSignal.User.pushSubscription.getOptedInAsync();
-        console.log("OneSignal ID:", onesignalId);
-        console.log("Push Token:", pushToken);
-        console.log("Is Subscribed:", isSubscribed);
 
         // Set external user ID if available
         if (userdetails?.accountId) {
           OneSignal.login(userdetails.accountId);
-          console.log("OneSignal external user ID set:", userdetails.accountId);
         }
       } catch (error) {
         showAlert(

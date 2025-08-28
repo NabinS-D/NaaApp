@@ -18,11 +18,23 @@ const CategoryHeader = memo(({ title }) => (
 // Memoized Expense Item Component
 const ExpenseItem = memo(({ expense, formatDate }) => (
   <View className="bg-white p-4 rounded-lg mb-2 w-full flex-row justify-between">
-    <View>
-      <Text className="font-pmedium">{expense.description}</Text>
-      <Text className="text-gray-500">{formatDate(expense.$createdAt)}</Text>
+    <View className="flex-1 mr-3">
+      <Text 
+        className="font-pmedium text-gray-800"
+        numberOfLines={2}
+        ellipsizeMode="tail"
+      >
+        {expense.description}
+      </Text>
+      <Text className="text-gray-500 text-sm mt-1">
+        {formatDate(expense.$createdAt)}
+      </Text>
     </View>
-    <Text className="text-lg">Rs {parseFloat(expense.amount).toFixed(2)}</Text>
+    <View className="justify-center">
+      <Text className="text-lg font-psemibold text-green-600">
+        Rs {parseFloat(expense.amount).toFixed(2)}
+      </Text>
+    </View>
   </View>
 ));
 
