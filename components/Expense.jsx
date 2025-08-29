@@ -28,9 +28,10 @@ import useAlertContext from "../context/AlertProvider.js";
 import { processImageWithOCR, parseOCRText } from "../lib/ocr.js";
 import QRScanner from "./QRScanner.jsx";
 import ExpenseFilter from "./ExpenseFilter.jsx";
+// import CSVUploader from "./CSVUploader.jsx";
 
 // Memoized Header Buttons Component
-const HeaderButtons = memo(({ onAddExpense, onAddCategory, onListCategories, onScanReceipt, onScanQR, onFilter }) => (
+const HeaderButtons = memo(({ onAddExpense, onAddCategory, onListCategories, onScanReceipt, onScanQR, onFilter, onCSVUpload }) => (
   <View className="mb-8">
     {/* All Action Buttons - 3x2 Grid */}
     <View className="flex-row flex-wrap gap-3">
@@ -88,6 +89,15 @@ const HeaderButtons = memo(({ onAddExpense, onAddCategory, onListCategories, onS
           <Text className="text-white text-sm font-pmedium">Scan QR</Text>
         </TouchableOpacity>
       </View>
+      {/* <View className="w-[47%]">
+        <TouchableOpacity
+          onPress={onCSVUpload}
+          className="flex-row items-center gap-2 bg-emerald-500 px-4 py-3 rounded-xl justify-center w-full"
+        >
+          <MaterialIcons name="file-upload" size={20} color="white" />
+          <Text className="text-white text-sm font-pmedium">Import CSV</Text>
+        </TouchableOpacity>
+      </View> */}
     </View>
   </View>
 ));
@@ -355,6 +365,7 @@ const ExpenseTracker = () => {
     amountMax: '',
   });
   const [filteredExpenses, setFilteredExpenses] = useState([]);
+  const [isCSVUploaderVisible, setCSVUploaderVisible] = useState(false);
 
   // Image picker function using reusable component
   const [showImagePicker, setShowImagePicker] = useState(false);
@@ -442,13 +453,13 @@ const ExpenseTracker = () => {
     try {
       // Check if we already have permissions
       let { status } = await MediaLibrary.getPermissionsAsync();
-      
+
       // Only request if we don't have permissions
       if (status !== 'granted') {
         const permissionResult = await MediaLibrary.requestPermissionsAsync();
         status = permissionResult.status;
       }
-      
+
       if (status !== 'granted') {
         showAlert(
           'Permission Required',
@@ -612,7 +623,7 @@ const ExpenseTracker = () => {
   const handleDeleteAllAction = useCallback(async () => {
     // Use ref instead of state to get current selected items
     const currentSelectedItems = selectedItemsRef.current;
-    
+
     // Check if selectedItems is empty (either null, undefined, empty array, or not an array)
     if (
       !currentSelectedItems ||
@@ -623,7 +634,7 @@ const ExpenseTracker = () => {
       setDeleteModalVisible(false);
       return;
     }
-    
+
     try {
       await deleteAllExpensesById(currentSelectedItems);
       showAlert("Success", "Expenses deleted successfully!", "success");
@@ -655,7 +666,7 @@ const ExpenseTracker = () => {
   // Toggle select all functionality
   const toggleSelectAll = useCallback(() => {
     const currentExpenses = hasActiveFilters ? filteredExpenses : expenses;
-    
+
     if (selectAll) {
       setSelectedItems([]); // Deselect all
       selectedItemsRef.current = []; // Keep ref in sync
@@ -832,16 +843,54 @@ const ExpenseTracker = () => {
     setFilterModalVisible(true);
   };
 
+  const handleCSVUpload = () => {
+    setCSVUploaderVisible(true);
+  };
+
+  const handleCSVUploadComplete = async (processedExpenses) => {
+    setIsLoading(true);
+    try {
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const expense of processedExpenses) {
+        try {
+          await addExpenses(expense, userdetails.$id);
+          successCount++;
+        } catch (error) {
+          errorCount++;
+          console.error('Failed to add expense:', error);
+        }
+      }
+
+      if (successCount > 0) {
+        showAlert(
+          "Import Complete",
+          `Successfully imported ${successCount} expenses${errorCount > 0 ? `. ${errorCount} failed.` : ''}`,
+          "success"
+        );
+        await fetchData(); // Refresh the expense list
+      } else {
+        showAlert("Import Failed", "No expenses were imported successfully", "error");
+      }
+
+    } catch (error) {
+      showAlert("Error", "Failed to import expenses: " + error.message, "error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const applyFilters = useCallback((filters) => {
     setActiveFilters(filters);
-    
+
     let filtered = [...expenses];
-    
+
     // Filter by category
     if (filters.category) {
       filtered = filtered.filter(expense => expense.category?.$id === filters.category);
     }
-    
+
     // Filter by date range
     if (filters.dateFrom) {
       filtered = filtered.filter(expense => {
@@ -851,7 +900,7 @@ const ExpenseTracker = () => {
         return expenseDate >= fromDate;
       });
     }
-    
+
     if (filters.dateTo) {
       filtered = filtered.filter(expense => {
         const expenseDate = new Date(expense.$createdAt);
@@ -860,7 +909,7 @@ const ExpenseTracker = () => {
         return expenseDate <= toDate;
       });
     }
-    
+
     // Filter by amount range
     if (filters.amountMin) {
       const minAmount = parseFloat(filters.amountMin);
@@ -868,24 +917,24 @@ const ExpenseTracker = () => {
         filtered = filtered.filter(expense => parseFloat(expense.amount) >= minAmount);
       }
     }
-    
+
     if (filters.amountMax) {
       const maxAmount = parseFloat(filters.amountMax);
       if (!isNaN(maxAmount)) {
         filtered = filtered.filter(expense => parseFloat(expense.amount) <= maxAmount);
       }
     }
-    
+
     setFilteredExpenses(filtered);
   }, [expenses]);
 
   // Check if any filters are active
   const hasActiveFilters = useMemo(() => {
-    return activeFilters.category || 
-           activeFilters.dateFrom || 
-           activeFilters.dateTo || 
-           activeFilters.amountMin || 
-           activeFilters.amountMax;
+    return activeFilters.category ||
+      activeFilters.dateFrom ||
+      activeFilters.dateTo ||
+      activeFilters.amountMin ||
+      activeFilters.amountMax;
   }, [activeFilters]);
 
   const renderHeader = useCallback(
@@ -898,8 +947,9 @@ const ExpenseTracker = () => {
           onScanReceipt={handleScanReceipt}
           onScanQR={handleScanQRPress}
           onFilter={handleFilterPress}
+          onCSVUpload={handleCSVUpload}
         />
-        
+
         {/* Monthly Total Section - Properly Spaced */}
         <View className="mb-6 bg-gray-800/50 p-4 rounded-xl">
           <View className="flex-row items-center justify-between">
@@ -953,7 +1003,7 @@ const ExpenseTracker = () => {
             {hasActiveFilters ? 'No expenses match the current filters.' : 'No expenses found.'}
           </Text>
         )}
-        
+
         {hasActiveFilters && (
           <TouchableOpacity
             onPress={() => applyFilters({
@@ -1092,7 +1142,7 @@ const ExpenseTracker = () => {
         onSecondaryPress={() => setDeleteModalVisible(false)}
       >
         <Text className="text-base text-center text-gray-600 mb-4">
-          {hasActiveFilters 
+          {hasActiveFilters
             ? `You are about to delete ${selectedItemsRef.current?.length || 0} filtered expense${selectedItemsRef.current?.length === 1 ? '' : 's'}. This action cannot be undone.`
             : `You are about to delete ${selectedItemsRef.current?.length || 0} expense${selectedItemsRef.current?.length === 1 ? '' : 's'}. This action cannot be undone.`
           }
@@ -1168,6 +1218,15 @@ const ExpenseTracker = () => {
         categories={categories}
         currentFilters={activeFilters}
       />
+
+      {/* CSV Uploader Modal */}
+      {/* <CSVUploader
+        visible={isCSVUploaderVisible}
+        onClose={() => setCSVUploaderVisible(false)}
+        onUploadComplete={handleCSVUploadComplete}
+        categories={categories}
+        userId={userdetails.$id}
+      /> */}
     </View>
   );
 };
