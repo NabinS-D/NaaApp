@@ -27,9 +27,10 @@ import FancyAlert from "./CustomAlert.jsx";
 import useAlertContext from "../context/AlertProvider.js";
 import { processImageWithOCR, parseOCRText } from "../lib/ocr.js";
 import QRScanner from "./QRScanner.jsx";
+import ExpenseFilter from "./ExpenseFilter.jsx";
 
 // Memoized Header Buttons Component
-const HeaderButtons = memo(({ onAddExpense, onAddCategory, onListCategories, onScanReceipt, onScanQR }) => (
+const HeaderButtons = memo(({ onAddExpense, onAddCategory, onListCategories, onScanReceipt, onScanQR, onFilter }) => (
   <View className="mb-6">
     <View className="flex-row justify-center items-center gap-2 flex-wrap mb-3">
       <CustomButton
@@ -51,6 +52,13 @@ const HeaderButtons = memo(({ onAddExpense, onAddCategory, onListCategories, onS
         handlePress={onListCategories}
         containerStyles="px-3 py-2 rounded-lg flex-1 min-w-[80px]"
         buttoncolor="bg-orange-500"
+        textStyles="text-white text-xs text-center"
+      />
+      <CustomButton
+        title="Filter"
+        handlePress={onFilter}
+        containerStyles="px-3 py-2 rounded-lg flex-1 min-w-[80px]"
+        buttoncolor="bg-purple-500"
         textStyles="text-white text-xs text-center"
       />
     </View>
@@ -330,6 +338,15 @@ const ExpenseTracker = () => {
   const [isReceiptImageModalVisible, setReceiptImageModalVisible] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [selectedImageForDownload, setSelectedImageForDownload] = useState(null);
+  const [isFilterModalVisible, setFilterModalVisible] = useState(false);
+  const [activeFilters, setActiveFilters] = useState({
+    category: '',
+    dateFrom: null,
+    dateTo: null,
+    amountMin: '',
+    amountMax: '',
+  });
+  const [filteredExpenses, setFilteredExpenses] = useState([]);
 
   // Image picker function using reusable component
   const [showImagePicker, setShowImagePicker] = useState(false);
@@ -629,13 +646,14 @@ const ExpenseTracker = () => {
 
   // Toggle select all functionality
   const toggleSelectAll = useCallback(() => {
+    const currentExpenses = hasActiveFilters ? filteredExpenses : expenses;
     if (selectAll) {
       setSelectedItems([]); // Deselect all
     } else {
-      setSelectedItems(expenses.map((expense) => expense.$id)); // Select all expenses
+      setSelectedItems(currentExpenses.map((expense) => expense.$id)); // Select all expenses
     }
     setSelectAll(!selectAll);
-  }, [selectAll, expenses]);
+  }, [selectAll, expenses, filteredExpenses, hasActiveFilters]);
 
   const handleSelectItem = useCallback((item) => {
     setSelectedItems((prevSelectedItems) => {
@@ -652,14 +670,20 @@ const ExpenseTracker = () => {
     });
   }, []);
 
+  // Apply filters when expenses change
+  useEffect(() => {
+    applyFilters(activeFilters);
+  }, [expenses, applyFilters]);
+
   // Sync selectAll state with selectedItems
   useEffect(() => {
-    if (expenses.length > 0) {
-      setSelectAll(selectedItems.length === expenses.length);
+    const currentExpenses = hasActiveFilters ? filteredExpenses : expenses;
+    if (currentExpenses.length > 0) {
+      setSelectAll(selectedItems.length === currentExpenses.length);
     } else {
       setSelectAll(false);
     }
-  }, [selectedItems.length, expenses.length]);
+  }, [selectedItems.length, expenses.length, filteredExpenses.length, hasActiveFilters]);
 
   // Preserve selectedItems during data loading
   useEffect(() => {
@@ -791,6 +815,66 @@ const ExpenseTracker = () => {
     router.push('/(tabs)/(tracker)/categoryList');
   };
 
+  const handleFilterPress = () => {
+    setFilterModalVisible(true);
+  };
+
+  const applyFilters = useCallback((filters) => {
+    setActiveFilters(filters);
+    
+    let filtered = [...expenses];
+    
+    // Filter by category
+    if (filters.category) {
+      filtered = filtered.filter(expense => expense.category?.$id === filters.category);
+    }
+    
+    // Filter by date range
+    if (filters.dateFrom) {
+      filtered = filtered.filter(expense => {
+        const expenseDate = new Date(expense.$createdAt);
+        const fromDate = new Date(filters.dateFrom);
+        fromDate.setHours(0, 0, 0, 0);
+        return expenseDate >= fromDate;
+      });
+    }
+    
+    if (filters.dateTo) {
+      filtered = filtered.filter(expense => {
+        const expenseDate = new Date(expense.$createdAt);
+        const toDate = new Date(filters.dateTo);
+        toDate.setHours(23, 59, 59, 999);
+        return expenseDate <= toDate;
+      });
+    }
+    
+    // Filter by amount range
+    if (filters.amountMin) {
+      const minAmount = parseFloat(filters.amountMin);
+      if (!isNaN(minAmount)) {
+        filtered = filtered.filter(expense => parseFloat(expense.amount) >= minAmount);
+      }
+    }
+    
+    if (filters.amountMax) {
+      const maxAmount = parseFloat(filters.amountMax);
+      if (!isNaN(maxAmount)) {
+        filtered = filtered.filter(expense => parseFloat(expense.amount) <= maxAmount);
+      }
+    }
+    
+    setFilteredExpenses(filtered);
+  }, [expenses]);
+
+  // Check if any filters are active
+  const hasActiveFilters = useMemo(() => {
+    return activeFilters.category || 
+           activeFilters.dateFrom || 
+           activeFilters.dateTo || 
+           activeFilters.amountMin || 
+           activeFilters.amountMax;
+  }, [activeFilters]);
+
   const renderHeader = useCallback(
     () => (
       <>
@@ -801,6 +885,7 @@ const ExpenseTracker = () => {
             onListCategories={handleListCategories}
             onScanReceipt={handleScanReceipt}
             onScanQR={handleScanQRPress}
+            onFilter={handleFilterPress}
           />
         </View>
         <View className="mb-6 flex-row items-center justify-between">
@@ -822,9 +907,18 @@ const ExpenseTracker = () => {
         </View>
 
         <View className="flex-row items-center justify-between mb-2">
-          <Text className="text-xl text-cyan-100 font-plight">
-            Recent Expenses
-          </Text>
+          <View className="flex-row items-center">
+            <Text className="text-xl text-cyan-100 font-plight">
+              {hasActiveFilters ? 'Filtered Expenses' : 'Recent Expenses'}
+            </Text>
+            {hasActiveFilters && (
+              <View className="ml-2 bg-purple-500 px-2 py-1 rounded-full">
+                <Text className="text-white text-xs font-pmedium">
+                  {filteredExpenses.length}
+                </Text>
+              </View>
+            )}
+          </View>
           <View className="flex-row items-center">
             <TouchableOpacity onPress={toggleSelectAll}>
               <MaterialIcons
@@ -839,10 +933,26 @@ const ExpenseTracker = () => {
           </View>
         </View>
 
-        {expenses.length === 0 && (
+        {(hasActiveFilters ? filteredExpenses : expenses).length === 0 && (
           <Text className="text-xl text-cyan-100 font-psemibold mb-2">
-            No expenses found.
+            {hasActiveFilters ? 'No expenses match the current filters.' : 'No expenses found.'}
           </Text>
+        )}
+        
+        {hasActiveFilters && (
+          <TouchableOpacity
+            onPress={() => applyFilters({
+              category: '',
+              dateFrom: null,
+              dateTo: null,
+              amountMin: '',
+              amountMax: '',
+            })}
+            className="flex-row items-center justify-center mb-2 bg-gray-200 py-2 px-4 rounded-lg"
+          >
+            <MaterialIcons name="clear" size={16} color="#6B7280" />
+            <Text className="text-gray-600 ml-1 font-pmedium">Clear All Filters</Text>
+          </TouchableOpacity>
         )}
       </>
     ),
@@ -863,14 +973,17 @@ const ExpenseTracker = () => {
     setSearchQuery(text);
   }, []);
 
-  const tenMostRecent = [...expenses]
-    .sort((a, b) => {
-      // Use Appwrite's $createdAt for accurate document creation time
-      const dateA = new Date(a.$createdAt);
-      const dateB = new Date(b.$createdAt);
-      return dateB - dateA;
-    })
-    .slice(0, 10);
+  const displayExpenses = useMemo(() => {
+    const expensesToShow = hasActiveFilters ? filteredExpenses : expenses;
+    return [...expensesToShow]
+      .sort((a, b) => {
+        // Use Appwrite's $createdAt for accurate document creation time
+        const dateA = new Date(a.$createdAt);
+        const dateB = new Date(b.$createdAt);
+        return dateB - dateA;
+      })
+      .slice(0, hasActiveFilters ? expensesToShow.length : 10);
+  }, [expenses, filteredExpenses, hasActiveFilters]);
 
   if (isLoading) {
     return (
@@ -896,7 +1009,7 @@ const ExpenseTracker = () => {
       )}
 
       <FlatList
-        data={tenMostRecent}
+        data={displayExpenses}
         renderItem={({ item }) => (
           <ExpenseItem
             item={item}
@@ -1024,6 +1137,15 @@ const ExpenseTracker = () => {
           Do you want to download this receipt image to your gallery?
         </Text>
       </CustomModal>
+
+      {/* Filter Modal */}
+      <ExpenseFilter
+        visible={isFilterModalVisible}
+        onClose={() => setFilterModalVisible(false)}
+        onApplyFilters={applyFilters}
+        categories={categories}
+        currentFilters={activeFilters}
+      />
     </View>
   );
 };
