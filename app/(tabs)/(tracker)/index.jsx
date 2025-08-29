@@ -15,7 +15,7 @@ const Tracker = () => {
         </Text>
       </View>
       {/* Main Content */}
-      <Insights />
+      {/* <Insights /> */}
       <Forecasting />
       <ExpenseTracker/>
     </SafeAreaView>

@@ -31,55 +31,63 @@ import ExpenseFilter from "./ExpenseFilter.jsx";
 
 // Memoized Header Buttons Component
 const HeaderButtons = memo(({ onAddExpense, onAddCategory, onListCategories, onScanReceipt, onScanQR, onFilter }) => (
-  <View className="mb-6">
-    <View className="flex-row justify-center items-center gap-2 flex-wrap mb-3">
-      <CustomButton
-        title="Add Expense"
-        handlePress={onAddExpense}
-        containerStyles="px-3 py-2 rounded-lg flex-1 min-w-[80px]"
-        buttoncolor="bg-blue-500"
-        textStyles="text-white text-xs text-center"
-      />
-      <CustomButton
-        title="Add Category"
-        handlePress={onAddCategory}
-        containerStyles="px-3 py-2 rounded-lg flex-1 min-w-[80px]"
-        buttoncolor="bg-green-500"
-        textStyles="text-white text-xs text-center"
-      />
-      <CustomButton
-        title="List Categories"
-        handlePress={onListCategories}
-        containerStyles="px-3 py-2 rounded-lg flex-1 min-w-[80px]"
-        buttoncolor="bg-orange-500"
-        textStyles="text-white text-xs text-center"
-      />
-      <CustomButton
-        title="Filter"
-        handlePress={onFilter}
-        containerStyles="px-3 py-2 rounded-lg flex-1 min-w-[80px]"
-        buttoncolor="bg-purple-500"
-        textStyles="text-white text-xs text-center"
-      />
-    </View>
-
-    {/* Scan Actions */}
-    <View className="flex-row justify-center items-center gap-4">
-      <TouchableOpacity
-        onPress={onScanReceipt}
-        className="flex-row items-center gap-1 bg-cyan-100 px-3 py-2 rounded-lg"
-      >
-        <MaterialIcons name="camera-alt" size={18} color="#0891b2" />
-        <Text className="text-cyan-700 text-xs font-pmedium">Scan Receipt</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        onPress={onScanQR}
-        className="flex-row items-center gap-1 bg-purple-100 px-3 py-2 rounded-lg"
-      >
-        <MaterialIcons name="qr-code-scanner" size={18} color="#7c3aed" />
-        <Text className="text-purple-700 text-xs font-pmedium">Scan QR</Text>
-      </TouchableOpacity>
+  <View className="mb-8">
+    {/* All Action Buttons - 3x2 Grid */}
+    <View className="flex-row flex-wrap gap-3">
+      <View className="w-[47%]">
+        <CustomButton
+          title="Add Expense"
+          handlePress={onAddExpense}
+          containerStyles="py-3 px-4 rounded-xl w-full"
+          buttoncolor="bg-blue-500"
+          textStyles="text-white text-sm font-pmedium text-center"
+        />
+      </View>
+      <View className="w-[47%]">
+        <CustomButton
+          title="Filter"
+          handlePress={onFilter}
+          containerStyles="py-3 px-4 rounded-xl w-full"
+          buttoncolor="bg-purple-500"
+          textStyles="text-white text-sm font-pmedium text-center"
+        />
+      </View>
+      <View className="w-[47%]">
+        <CustomButton
+          title="Add Category"
+          handlePress={onAddCategory}
+          containerStyles="py-3 px-4 rounded-xl w-full"
+          buttoncolor="bg-green-500"
+          textStyles="text-white text-sm font-pmedium text-center"
+        />
+      </View>
+      <View className="w-[47%]">
+        <CustomButton
+          title="Categories"
+          handlePress={onListCategories}
+          containerStyles="py-3 px-4 rounded-xl w-full"
+          buttoncolor="bg-orange-500"
+          textStyles="text-white text-sm font-pmedium text-center"
+        />
+      </View>
+      <View className="w-[47%]">
+        <TouchableOpacity
+          onPress={onScanReceipt}
+          className="flex-row items-center gap-2 bg-cyan-500 px-4 py-3 rounded-xl justify-center w-full"
+        >
+          <MaterialIcons name="camera-alt" size={20} color="white" />
+          <Text className="text-white text-sm font-pmedium">Scan Receipt</Text>
+        </TouchableOpacity>
+      </View>
+      <View className="w-[47%]">
+        <TouchableOpacity
+          onPress={onScanQR}
+          className="flex-row items-center gap-2 bg-indigo-500 px-4 py-3 rounded-xl justify-center w-full"
+        >
+          <MaterialIcons name="qr-code-scanner" size={20} color="white" />
+          <Text className="text-white text-sm font-pmedium">Scan QR</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   </View>
 ));
@@ -604,7 +612,7 @@ const ExpenseTracker = () => {
   const handleDeleteAllAction = useCallback(async () => {
     // Use ref instead of state to get current selected items
     const currentSelectedItems = selectedItemsRef.current;
-
+    
     // Check if selectedItems is empty (either null, undefined, empty array, or not an array)
     if (
       !currentSelectedItems ||
@@ -615,7 +623,7 @@ const ExpenseTracker = () => {
       setDeleteModalVisible(false);
       return;
     }
-
+    
     try {
       await deleteAllExpensesById(currentSelectedItems);
       showAlert("Success", "Expenses deleted successfully!", "success");
@@ -647,10 +655,14 @@ const ExpenseTracker = () => {
   // Toggle select all functionality
   const toggleSelectAll = useCallback(() => {
     const currentExpenses = hasActiveFilters ? filteredExpenses : expenses;
+    
     if (selectAll) {
       setSelectedItems([]); // Deselect all
+      selectedItemsRef.current = []; // Keep ref in sync
     } else {
-      setSelectedItems(currentExpenses.map((expense) => expense.$id)); // Select all expenses
+      const allIds = currentExpenses.map((expense) => expense.$id);
+      setSelectedItems(allIds); // Select all expenses
+      selectedItemsRef.current = allIds; // Keep ref in sync
     }
     setSelectAll(!selectAll);
   }, [selectAll, expenses, filteredExpenses, hasActiveFilters]);
@@ -674,6 +686,7 @@ const ExpenseTracker = () => {
   useEffect(() => {
     applyFilters(activeFilters);
   }, [expenses, applyFilters]);
+
 
   // Sync selectAll state with selectedItems
   useEffect(() => {
@@ -878,23 +891,25 @@ const ExpenseTracker = () => {
   const renderHeader = useCallback(
     () => (
       <>
-        <View className="mb-6">
-          <HeaderButtons
-            onAddExpense={() => setExpenseModalVisible(true)}
-            onAddCategory={() => setCategoryModalVisible(true)}
-            onListCategories={handleListCategories}
-            onScanReceipt={handleScanReceipt}
-            onScanQR={handleScanQRPress}
-            onFilter={handleFilterPress}
-          />
-        </View>
-        <View className="mb-6 flex-row items-center justify-between">
-          <Text className="text-xl text-cyan-100 font-plight mb-2">
-            This month total Expense
-          </Text>
-          <Text className="text-xl text-cyan-100 font-psemibold mb-2">
-            Rs {TotalExpenseForMonth.toFixed(2)}
-          </Text>
+        <HeaderButtons
+          onAddExpense={() => setExpenseModalVisible(true)}
+          onAddCategory={() => setCategoryModalVisible(true)}
+          onListCategories={handleListCategories}
+          onScanReceipt={handleScanReceipt}
+          onScanQR={handleScanQRPress}
+          onFilter={handleFilterPress}
+        />
+        
+        {/* Monthly Total Section - Properly Spaced */}
+        <View className="mb-6 bg-gray-800/50 p-4 rounded-xl">
+          <View className="flex-row items-center justify-between">
+            <Text className="text-lg text-cyan-100 font-plight">
+              This Month Total Expense
+            </Text>
+            <Text className="text-xl text-cyan-100 font-psemibold">
+              Rs {TotalExpenseForMonth.toFixed(2)}
+            </Text>
+          </View>
         </View>
         <View className="mb-6">
           <Text className="text-xl text-cyan-100 font-plight mb-2">
@@ -1070,12 +1085,19 @@ const ExpenseTracker = () => {
         onSecondaryPress={() => setExpenseActionModalVisible(false)}
       />
       <CustomModal
-        title="Are you sure you want to delete the selected entries?"
+        title={`Delete ${selectedItemsRef.current?.length || 0} Selected Expense${selectedItemsRef.current?.length === 1 ? '' : 's'}?`}
         modalVisible={isDeleteModalVisible}
         primaryButtonText="Delete"
         onPrimaryPress={handleDeleteAllAction}
         onSecondaryPress={() => setDeleteModalVisible(false)}
-      />
+      >
+        <Text className="text-base text-center text-gray-600 mb-4">
+          {hasActiveFilters 
+            ? `You are about to delete ${selectedItemsRef.current?.length || 0} filtered expense${selectedItemsRef.current?.length === 1 ? '' : 's'}. This action cannot be undone.`
+            : `You are about to delete ${selectedItemsRef.current?.length || 0} expense${selectedItemsRef.current?.length === 1 ? '' : 's'}. This action cannot be undone.`
+          }
+        </Text>
+      </CustomModal>
 
       <QRScanner
         visible={isQRScannerVisible}

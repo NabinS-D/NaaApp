@@ -20,12 +20,14 @@ const ExpenseFilter = memo(({
 }) => {
     const [filters, setFilters] = useState({
         category: '',
-        dateFrom: null,
-        dateTo: null,
+        dateFrom: '',
+        dateTo: '',
         amountMin: '',
         amountMax: '',
         ...currentFilters
     });
+
+    const [showValidationError, setShowValidationError] = useState(false);
 
 
     // Reset filters to current when modal opens
@@ -33,8 +35,8 @@ const ExpenseFilter = memo(({
         if (visible) {
             setFilters({
                 category: '',
-                dateFrom: null,
-                dateTo: null,
+                dateFrom: '',
+                dateTo: '',
                 amountMin: '',
                 amountMax: '',
                 ...currentFilters
@@ -43,9 +45,36 @@ const ExpenseFilter = memo(({
     }, [visible, currentFilters]);
 
     const handleApplyFilters = () => {
+        // Check if at least one filter is set
+        const hasFilters = filters.category || 
+                          filters.dateFrom || 
+                          filters.dateTo || 
+                          filters.amountMin || 
+                          filters.amountMax;
+
+        if (!hasFilters) {
+            setShowValidationError(true);
+            return;
+        }
+
+        // Validate and convert dates
+        const dateFromObj = filters.dateFrom ? new Date(filters.dateFrom) : null;
+        const dateToObj = filters.dateTo ? new Date(filters.dateTo) : null;
+
         // Validate date range
-        if (filters.dateFrom && filters.dateTo && filters.dateFrom > filters.dateTo) {
+        if (dateFromObj && dateToObj && dateFromObj > dateToObj) {
             alert('Start date cannot be after end date');
+            return;
+        }
+
+        // Validate date format
+        if (filters.dateFrom && isNaN(dateFromObj)) {
+            alert('Please enter a valid start date in YYYY-MM-DD format');
+            return;
+        }
+
+        if (filters.dateTo && isNaN(dateToObj)) {
+            alert('Please enter a valid end date in YYYY-MM-DD format');
             return;
         }
 
@@ -58,36 +87,57 @@ const ExpenseFilter = memo(({
             return;
         }
 
-        onApplyFilters(filters);
+        // Convert to the format expected by the parent component
+        const filtersToApply = {
+            ...filters,
+            dateFrom: dateFromObj,
+            dateTo: dateToObj
+        };
+
+        onApplyFilters(filtersToApply);
         onClose();
     };
 
     const handleClearFilters = () => {
         const clearedFilters = {
             category: '',
-            dateFrom: null,
-            dateTo: null,
+            dateFrom: '',
+            dateTo: '',
             amountMin: '',
             amountMax: '',
         };
         setFilters(clearedFilters);
-        onApplyFilters(clearedFilters);
+        // Convert to the format expected by the parent component
+        const filtersToApply = {
+            ...clearedFilters,
+            dateFrom: null,
+            dateTo: null
+        };
+        onApplyFilters(filtersToApply);
         onClose();
     };
 
     const formatDateForInput = (date) => {
         if (!date) return '';
+        // Handle both string and Date object inputs
+        if (typeof date === 'string') return date;
         return date.toISOString().split('T')[0];
     };
 
+    const isValidDateString = (dateString) => {
+        if (!dateString) return true; // Empty string is valid (no filter)
+        const regex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!regex.test(dateString)) return false;
+        const date = new Date(dateString);
+        return !isNaN(date.getTime());
+    };
+
     const handleDateFromChange = (dateString) => {
-        const date = dateString ? new Date(dateString) : null;
-        setFilters(prev => ({ ...prev, dateFrom: date }));
+        setFilters(prev => ({ ...prev, dateFrom: dateString }));
     };
 
     const handleDateToChange = (dateString) => {
-        const date = dateString ? new Date(dateString) : null;
-        setFilters(prev => ({ ...prev, dateTo: date }));
+        setFilters(prev => ({ ...prev, dateTo: dateString }));
     };
 
     return (
@@ -140,8 +190,15 @@ const ExpenseFilter = memo(({
                                     placeholder="YYYY-MM-DD"
                                     value={formatDateForInput(filters.dateFrom)}
                                     onChangeText={handleDateFromChange}
-                                    className="border border-gray-300 rounded-lg p-3 bg-gray-50 text-gray-700"
+                                    maxLength={10}
+                                    className={`border rounded-lg p-3 bg-gray-50 text-gray-700 ${filters.dateFrom && !isValidDateString(filters.dateFrom)
+                                            ? 'border-red-400'
+                                            : 'border-gray-300'
+                                        }`}
                                 />
+                                {filters.dateFrom && !isValidDateString(filters.dateFrom) && (
+                                    <Text className="text-red-500 text-xs mt-1">Invalid date format</Text>
+                                )}
                             </View>
 
                             {/* Date To */}
@@ -151,14 +208,21 @@ const ExpenseFilter = memo(({
                                     placeholder="YYYY-MM-DD"
                                     value={formatDateForInput(filters.dateTo)}
                                     onChangeText={handleDateToChange}
-                                    className="border border-gray-300 rounded-lg p-3 bg-gray-50 text-gray-700"
+                                    maxLength={10}
+                                    className={`border rounded-lg p-3 bg-gray-50 text-gray-700 ${filters.dateTo && !isValidDateString(filters.dateTo)
+                                            ? 'border-red-400'
+                                            : 'border-gray-300'
+                                        }`}
                                 />
+                                {filters.dateTo && !isValidDateString(filters.dateTo) && (
+                                    <Text className="text-red-500 text-xs mt-1">Invalid date format</Text>
+                                )}
                             </View>
 
                             {/* Clear Date Range */}
                             {(filters.dateFrom || filters.dateTo) && (
                                 <TouchableOpacity
-                                    onPress={() => setFilters(prev => ({ ...prev, dateFrom: null, dateTo: null }))}
+                                    onPress={() => setFilters(prev => ({ ...prev, dateFrom: '', dateTo: '' }))}
                                     className="flex-row items-center justify-center mt-1"
                                 >
                                     <MaterialIcons name="clear" size={16} color="#EF4444" />
@@ -198,22 +262,41 @@ const ExpenseFilter = memo(({
                             </View>
                         </View>
 
+                        {/* Validation Error Message */}
+                        {showValidationError && (
+                            <View className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                                <View className="flex-row items-center">
+                                    <MaterialIcons name="error-outline" size={20} color="#DC2626" />
+                                    <Text className="text-red-700 font-pmedium ml-2 flex-1">
+                                        Please set at least one filter before applying
+                                    </Text>
+                                    <TouchableOpacity onPress={() => setShowValidationError(false)}>
+                                        <MaterialIcons name="close" size={18} color="#DC2626" />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        )}
+
                         {/* Action Buttons */}
-                        <View className="flex-row gap-3">
-                            <CustomButton
-                                title="Clear All"
-                                handlePress={handleClearFilters}
-                                containerStyles="flex-1 py-3"
-                                buttoncolor="bg-gray-500"
-                                textStyles="text-white font-pmedium"
-                            />
-                            <CustomButton
-                                title="Apply Filters"
-                                handlePress={handleApplyFilters}
-                                containerStyles="flex-1 py-3"
-                                buttoncolor="bg-blue-500"
-                                textStyles="text-white font-pmedium"
-                            />
+                        <View className="flex-row gap-4 mt-2">
+                            <View className="flex-1">
+                                <CustomButton
+                                    title="Clear All"
+                                    handlePress={handleClearFilters}
+                                    containerStyles="py-4 px-6 rounded-xl w-full"
+                                    buttoncolor="bg-gray-600"
+                                    textStyles="text-white font-psemibold text-base text-center"
+                                />
+                            </View>
+                            <View className="flex-1">
+                                <CustomButton
+                                    title="Apply Filters"
+                                    handlePress={handleApplyFilters}
+                                    containerStyles="py-4 px-6 rounded-xl w-full"
+                                    buttoncolor="bg-blue-600"
+                                    textStyles="text-white font-psemibold text-base text-center"
+                                />
+                            </View>
                         </View>
                     </ScrollView>
 

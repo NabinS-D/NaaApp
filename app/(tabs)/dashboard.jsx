@@ -335,7 +335,7 @@ export default function Dashboard() {
         const shortName = category.length > 8 ? category.substring(0, 8) + '...' : category;
         
         return {
-          value: total, // Use actual value instead of percentage for better label visibility
+          value: percentage, // Use percentage for proper pie chart distribution
           color: colors[index % colors.length],
           text: `${shortName}\n${percentage.toFixed(1)}%`,
           labelText: `${category}: ${percentage.toFixed(1)}%`,
@@ -371,7 +371,7 @@ export default function Dashboard() {
       (expense) => expense.category?.category_name?.trim() === item.categoryName.trim()
     );
     setSelectedCategory({
-      category: item.text,
+      category: item.categoryName, // Use full category name instead of truncated text
       total: item.rawTotal,
       percentage: item.value,
       expenses: categoryExpenses,
