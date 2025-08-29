@@ -20,7 +20,7 @@
         "foregroundImage": "./assets/images/naal.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.naaapp"
+      "package": "com.NaaApp"
     },
     "web": {
       "bundler": "metro",
@@ -77,7 +77,7 @@
     "updates": {
       "enabled": true,
       "fallbackToCacheTimeout": 0,
-      "url": ""
+      "url": "https://u.expo.dev/768a7dec-4695-461f-8661-d4a81dd09fd2"
     },
     "runtimeVersion": "1.0.0"
   }
