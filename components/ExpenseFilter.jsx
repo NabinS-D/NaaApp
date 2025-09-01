@@ -211,7 +211,7 @@ const ExpenseFilter = memo(({
                                     className="border border-gray-300 rounded-lg p-3 bg-gray-50 flex-row items-center justify-between"
                                 >
                                     <Text className={`text-gray-700 ${!filters.dateFrom ? 'text-gray-400' : ''}`}>
-                                        {filters.dateFrom || 'Select start date'}
+                                        {formatDateForInput(filters.dateFrom) || 'Select start date'}
                                     </Text>
                                     <MaterialIcons name="date-range" size={20} color="#6B7280" />
                                 </TouchableOpacity>
@@ -234,7 +234,7 @@ const ExpenseFilter = memo(({
                                     className="border border-gray-300 rounded-lg p-3 bg-gray-50 flex-row items-center justify-between"
                                 >
                                     <Text className={`text-gray-700 ${!filters.dateTo ? 'text-gray-400' : ''}`}>
-                                        {filters.dateTo || 'Select end date'}
+                                        {formatDateForInput(filters.dateTo) || 'Select end date'}
                                     </Text>
                                     <MaterialIcons name="date-range" size={20} color="#6B7280" />
                                 </TouchableOpacity>

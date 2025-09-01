@@ -25,17 +25,16 @@ import CustomButton from "./CustomButton.jsx";
 import FormFields from "./FormFields.jsx";
 import FancyAlert from "./CustomAlert.jsx";
 import useAlertContext from "../context/AlertProvider.js";
-import { processImageWithOCR, parseOCRText } from "../lib/ocr.js";
 import QRScanner from "./QRScanner.jsx";
 import ExpenseFilter from "./ExpenseFilter.jsx";
-// import CSVUploader from "./CSVUploader.jsx";
+import CSVUploader from "./CSVUploader.jsx";
 
 // Memoized Header Buttons Component
 const HeaderButtons = memo(({ onAddExpense, onAddCategory, onListCategories, onScanReceipt, onScanQR, onFilter, onCSVUpload }) => (
   <View className="mb-8">
-    {/* All Action Buttons - 3x2 Grid */}
-    <View className="flex-row flex-wrap gap-3">
-      <View className="w-[47%]">
+    {/* All Action Buttons - 2 per row */}
+    <View className="flex-row flex-wrap justify-between gap-y-3">
+      <View className="w-[48%]">
         <CustomButton
           title="Add Expense"
           handlePress={onAddExpense}
@@ -44,7 +43,8 @@ const HeaderButtons = memo(({ onAddExpense, onAddCategory, onListCategories, onS
           textStyles="text-white text-sm font-pmedium text-center"
         />
       </View>
-      <View className="w-[47%]">
+
+      <View className="w-[48%]">
         <CustomButton
           title="Filter"
           handlePress={onFilter}
@@ -53,7 +53,8 @@ const HeaderButtons = memo(({ onAddExpense, onAddCategory, onListCategories, onS
           textStyles="text-white text-sm font-pmedium text-center"
         />
       </View>
-      <View className="w-[47%]">
+
+      <View className="w-[48%]">
         <CustomButton
           title="Add Category"
           handlePress={onAddCategory}
@@ -62,7 +63,8 @@ const HeaderButtons = memo(({ onAddExpense, onAddCategory, onListCategories, onS
           textStyles="text-white text-sm font-pmedium text-center"
         />
       </View>
-      <View className="w-[47%]">
+
+      <View className="w-[48%]">
         <CustomButton
           title="Categories"
           handlePress={onListCategories}
@@ -71,7 +73,8 @@ const HeaderButtons = memo(({ onAddExpense, onAddCategory, onListCategories, onS
           textStyles="text-white text-sm font-pmedium text-center"
         />
       </View>
-      <View className="w-[47%]">
+
+      <View className="w-[48%]">
         <TouchableOpacity
           onPress={onScanReceipt}
           className="flex-row items-center gap-2 bg-cyan-500 px-4 py-3 rounded-xl justify-center w-full"
@@ -80,7 +83,8 @@ const HeaderButtons = memo(({ onAddExpense, onAddCategory, onListCategories, onS
           <Text className="text-white text-sm font-pmedium">Scan Receipt</Text>
         </TouchableOpacity>
       </View>
-      <View className="w-[47%]">
+
+      <View className="w-[48%]">
         <TouchableOpacity
           onPress={onScanQR}
           className="flex-row items-center gap-2 bg-indigo-500 px-4 py-3 rounded-xl justify-center w-full"
@@ -89,7 +93,9 @@ const HeaderButtons = memo(({ onAddExpense, onAddCategory, onListCategories, onS
           <Text className="text-white text-sm font-pmedium">Scan QR</Text>
         </TouchableOpacity>
       </View>
-      {/* <View className="w-[47%]">
+
+      {/* Full width button */}
+      <View className="w-full">
         <TouchableOpacity
           onPress={onCSVUpload}
           className="flex-row items-center gap-2 bg-emerald-500 px-4 py-3 rounded-xl justify-center w-full"
@@ -97,9 +103,10 @@ const HeaderButtons = memo(({ onAddExpense, onAddCategory, onListCategories, onS
           <MaterialIcons name="file-upload" size={20} color="white" />
           <Text className="text-white text-sm font-pmedium">Import CSV</Text>
         </TouchableOpacity>
-      </View> */}
+      </View>
     </View>
   </View>
+
 ));
 
 // Memoized Category Item Component
@@ -199,7 +206,7 @@ const ExpenseItem = memo(({ item, onLongPress, isSelected, onSelect, onDelete, o
             <Text className="text-lg font-psemibold">
               Rs {parseFloat(item.amount).toFixed(2)}
             </Text>
-            <Text className="text-gray-500 text-xs">{formatDate(item.$createdAt)}</Text>
+            <Text className="text-gray-500 text-xs">{formatDate(item.createdAt)}</Text>
           </View>
           <TouchableOpacity onPress={() => onDelete(item)}>
             <MaterialIcons name="delete" size={20} color="red" />
@@ -365,6 +372,7 @@ const ExpenseTracker = () => {
     amountMax: '',
   });
   const [filteredExpenses, setFilteredExpenses] = useState([]);
+  const [filteredTotalAmount, setFilteredTotalAmount] = useState(0);
   const [isCSVUploaderVisible, setCSVUploaderVisible] = useState(false);
 
   // Image picker function using reusable component
@@ -391,14 +399,42 @@ const ExpenseTracker = () => {
 
   const TotalExpenseForMonth = useMemo(() => {
     const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
     return expenses.reduce((acc, expense) => {
-      const expenseDate = new Date(expense.createdAt);
-      if (expenseDate.getMonth() === currentMonth) {
+      // Use createdAt if available, fallback to $createdAt
+      const expenseDate = new Date(expense.createdAt || expense.$createdAt);
+      if (expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear) {
         return acc + parseFloat(expense.amount);
       }
       return acc;
     }, 0);
   }, [expenses]);
+
+  const getDateRangeText = useMemo(() => {
+    if (!hasActiveFilters) return "This Month Total Expense";
+
+    const { dateFrom, dateTo } = activeFilters;
+    if (dateFrom && dateTo) {
+      const fromDate = new Date(dateFrom).toLocaleDateString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric'
+      });
+      const toDate = new Date(dateTo).toLocaleDateString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric'
+      });
+      return `Total Expenses (${fromDate} to ${toDate})`;
+    } else if (dateFrom) {
+      const fromDate = new Date(dateFrom).toLocaleDateString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric'
+      });
+      return `Total Expenses (from ${fromDate})`;
+    } else if (dateTo) {
+      const toDate = new Date(dateTo).toLocaleDateString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric'
+      });
+      return `Total Expenses (until ${toDate})`;
+    }
+    return "Total Filtered Expenses";
+  }, [hasActiveFilters, activeFilters]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -560,19 +596,19 @@ const ExpenseTracker = () => {
       );
       return;
     }
-    const expenseDate = new Date(newExpense.date);
+    const expenseDate = newExpense.date ? new Date(newExpense.date) : null;
     const today = new Date();
-    const expenseDateOnly = new Date(
+    const expenseDateOnly = expenseDate ? new Date(
       expenseDate.getFullYear(),
       expenseDate.getMonth(),
       expenseDate.getDate()
-    );
+    ) : null;
     const todayOnly = new Date(
       today.getFullYear(),
       today.getMonth(),
       today.getDate()
     );
-    if (expenseDateOnly > todayOnly) {
+    if (expenseDateOnly && expenseDateOnly > todayOnly) {
       showAlert(
         "Validation Error",
         "Date cannot be greater than today's date",
@@ -588,7 +624,10 @@ const ExpenseTracker = () => {
         amount: amountValue,
       };
 
-      await addExpenses(expenseToAdd, userdetails.$id);
+      // Convert date to ISO string for createdAt field
+      const customDate = newExpense.date ? new Date(newExpense.date).toISOString() : null;
+
+      await addExpenses(expenseToAdd, userdetails.$id, customDate);
       setNewExpense({
         amount: "",
         description: "",
@@ -850,6 +889,15 @@ const ExpenseTracker = () => {
   const handleCSVUploadComplete = async (processedExpenses) => {
     setIsLoading(true);
     try {
+      // If processedExpenses is empty, it means CSVUploader already handled the import
+      if (processedExpenses.length === 0) {
+        // Just refresh the data since import was already handled by CSVUploader
+        await fetchData();
+        setIsLoading(false);
+        return;
+      }
+
+      // Legacy handling for when CSVUploader passes data to be imported here
       let successCount = 0;
       let errorCount = 0;
 
@@ -873,7 +921,6 @@ const ExpenseTracker = () => {
       } else {
         showAlert("Import Failed", "No expenses were imported successfully", "error");
       }
-
     } catch (error) {
       showAlert("Error", "Failed to import expenses: " + error.message, "error");
     } finally {
@@ -894,7 +941,7 @@ const ExpenseTracker = () => {
     // Filter by date range
     if (filters.dateFrom) {
       filtered = filtered.filter(expense => {
-        const expenseDate = new Date(expense.$createdAt);
+        const expenseDate = new Date(expense.createdAt || expense.$createdAt);
         const fromDate = new Date(filters.dateFrom);
         fromDate.setHours(0, 0, 0, 0);
         return expenseDate >= fromDate;
@@ -903,7 +950,7 @@ const ExpenseTracker = () => {
 
     if (filters.dateTo) {
       filtered = filtered.filter(expense => {
-        const expenseDate = new Date(expense.$createdAt);
+        const expenseDate = new Date(expense.createdAt || expense.$createdAt);
         const toDate = new Date(filters.dateTo);
         toDate.setHours(23, 59, 59, 999);
         return expenseDate <= toDate;
@@ -926,6 +973,11 @@ const ExpenseTracker = () => {
     }
 
     setFilteredExpenses(filtered);
+    const total = filtered.reduce((acc, expense) => {
+      const amount = parseFloat(expense.amount);
+      return acc + (isNaN(amount) ? 0 : amount);
+    }, 0);
+    setFilteredTotalAmount(total);
   }, [expenses]);
 
   // Check if any filters are active
@@ -954,10 +1006,10 @@ const ExpenseTracker = () => {
         <View className="mb-6 bg-gray-800/50 p-4 rounded-xl">
           <View className="flex-row items-center justify-between">
             <Text className="text-lg text-cyan-100 font-plight">
-              This Month Total Expense
+              {hasActiveFilters ? getDateRangeText : "This Month Total Expense"}
             </Text>
             <Text className="text-xl text-cyan-100 font-psemibold">
-              Rs {TotalExpenseForMonth.toFixed(2)}
+              Rs {hasActiveFilters ? filteredTotalAmount.toFixed(2) : TotalExpenseForMonth.toFixed(2)}
             </Text>
           </View>
         </View>
@@ -1021,7 +1073,7 @@ const ExpenseTracker = () => {
         )}
       </>
     ),
-    [categories, categoryTotals, expenses.length, selectAll, toggleSelectAll]
+    [categories, categoryTotals, expenses.length, selectAll, toggleSelectAll, hasActiveFilters, filteredExpenses.length, filteredTotalAmount, getDateRangeText]
   );
 
   // Memoized Search Input Component
@@ -1040,14 +1092,15 @@ const ExpenseTracker = () => {
 
   const displayExpenses = useMemo(() => {
     const expensesToShow = hasActiveFilters ? filteredExpenses : expenses;
-    return [...expensesToShow]
-      .sort((a, b) => {
-        // Use Appwrite's $createdAt for accurate document creation time
-        const dateA = new Date(a.$createdAt);
-        const dateB = new Date(b.$createdAt);
-        return dateB - dateA;
-      })
-      .slice(0, hasActiveFilters ? expensesToShow.length : 10);
+    const sortedExpenses = [...expensesToShow].sort((a, b) => {
+      // Prioritize createdAt (custom field) over $createdAt (system field)
+      const dateA = new Date(a.createdAt || a.$createdAt);
+      const dateB = new Date(b.createdAt || b.$createdAt);
+      return dateB - dateA; // Most recent first
+    });
+
+    // Only limit to 10 when no filters are active
+    return hasActiveFilters ? sortedExpenses : sortedExpenses.slice(0, 10);
   }, [expenses, filteredExpenses, hasActiveFilters]);
 
   if (isLoading) {
@@ -1220,13 +1273,13 @@ const ExpenseTracker = () => {
       />
 
       {/* CSV Uploader Modal */}
-      {/* <CSVUploader
+      <CSVUploader
         visible={isCSVUploaderVisible}
         onClose={() => setCSVUploaderVisible(false)}
         onUploadComplete={handleCSVUploadComplete}
         categories={categories}
         userId={userdetails.$id}
-      /> */}
+      />
     </View>
   );
 };

@@ -13,6 +13,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import CustomButton from './CustomButton';
+import { bulkImportExpenses } from '../lib/APIs/ExpenseApi';
 
 const CSVUploader = ({
   visible,
@@ -33,7 +34,6 @@ const CSVUploader = ({
     { key: 'description', label: 'Description', required: true },
     { key: 'category', label: 'Category', required: false },
     { key: 'date', label: 'Date', required: false },
-    { key: 'notes', label: 'Notes', required: false },
     { key: 'ignore', label: 'Ignore Column', required: false }
   ];
 
@@ -42,15 +42,24 @@ const CSVUploader = ({
     amount: ['amount', 'cost', 'price', 'total', 'value', 'expense'],
     description: ['description', 'details', 'item', 'expense', 'note', 'title'],
     category: ['category', 'type', 'group', 'classification'],
-    date: ['date', 'transaction date', 'created', 'when', 'timestamp'],
-    notes: ['notes', 'memo', 'comment', 'remarks']
+    date: ['date', 'transaction date', 'created', 'when', 'timestamp']
   };
 
   const selectFile = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ['text/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+        type: [
+          'text/csv',
+          'text/comma-separated-values',
+          'application/csv',
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/excel',
+          'application/x-excel',
+          'application/x-msexcel'
+        ],
         copyToCacheDirectory: true,
+        multiple: false,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -70,6 +79,7 @@ const CSVUploader = ({
       const fileContent = await response.text();
 
       let parsedResult;
+      let headers = [];
 
       if (file.name.toLowerCase().endsWith('.csv')) {
         // Parse CSV
@@ -85,6 +95,7 @@ const CSVUploader = ({
         }
 
         setParsedData(parsedResult.data);
+        headers = Object.keys(parsedResult.data[0] || {});
       } else {
         // Parse Excel
         const workbook = XLSX.read(fileContent, { type: 'string' });
@@ -101,7 +112,7 @@ const CSVUploader = ({
         }
 
         // Convert to Papa Parse format
-        const headers = jsonData[0].map(h => String(h).trim().toLowerCase());
+        headers = jsonData[0].map(h => String(h).trim().toLowerCase());
         const rows = jsonData.slice(1).map(row => {
           const obj = {};
           headers.forEach((header, index) => {
@@ -113,10 +124,8 @@ const CSVUploader = ({
         setParsedData(rows);
       }
 
-      // Auto-detect column mapping
-      autoDetectColumns(Object.keys(parsedData[0] || {}));
-      setCurrentStep('preview');
-
+      // Auto-detect column mapping with the correct headers
+      autoDetectColumns(headers);
     } catch (error) {
       Alert.alert('Error', 'Failed to parse file: ' + error.message);
     } finally {
@@ -125,28 +134,68 @@ const CSVUploader = ({
   };
 
   const autoDetectColumns = (headers) => {
+    console.log('=== AUTO DETECT COLUMNS ===');
+    console.log('Headers received:', headers);
+
     const mapping = {};
+    const confidence = {};
 
     headers.forEach(header => {
       const normalizedHeader = header.toLowerCase().trim();
+      console.log(`Processing header: "${header}" -> normalized: "${normalizedHeader}"`);
 
-      // Find best match for each field
+      // Find best match for each field with confidence scoring
       for (const [field, variations] of Object.entries(columnVariations)) {
-        if (variations.some(variation => normalizedHeader.includes(variation))) {
-          if (!mapping[field]) { // Only assign if not already mapped
-            mapping[header] = field;
-            break;
-          }
+        const matchScore = variations.reduce((score, variation) => {
+          if (normalizedHeader === variation) return 100; // Exact match
+          if (normalizedHeader.includes(variation)) return 80; // Contains match
+          if (variation.includes(normalizedHeader)) return 60; // Partial match
+          return score;
+        }, 0);
+
+        if (matchScore > 0 && (!mapping[header] || matchScore > confidence[header])) {
+          mapping[header] = field;
+          confidence[header] = matchScore;
+          console.log(`  Mapped "${header}" -> "${field}" (confidence: ${matchScore})`);
         }
       }
 
       // If no match found, default to ignore
       if (!mapping[header]) {
         mapping[header] = 'ignore';
+        confidence[header] = 0;
+        console.log(`  No match for "${header}" -> ignore`);
       }
     });
 
+    console.log('Final mapping:', mapping);
+    console.log('Final confidence:', confidence);
     setColumnMapping(mapping);
+
+    // Check if we have confident mappings for required fields
+    const requiredFields = ['amount', 'description'];
+    const mappedFields = Object.values(mapping);
+    const hasRequiredFields = requiredFields.every(field => mappedFields.includes(field));
+
+    console.log('Required fields:', requiredFields);
+    console.log('Mapped fields:', mappedFields);
+    console.log('Has required fields:', hasRequiredFields);
+
+    // Check confidence levels for required mappings
+    const requiredMappingsConfident = Object.entries(mapping)
+      .filter(([_, field]) => requiredFields.includes(field))
+      .every(([header, _]) => confidence[header] >= 80);
+
+    console.log('Required mappings confident:', requiredMappingsConfident);
+
+    // If we have high confidence in required field mappings, skip manual mapping
+    if (hasRequiredFields && requiredMappingsConfident) {
+      console.log('✅ Auto-detection successful - going to preview');
+      setCurrentStep('preview');
+    } else {
+      console.log('❌ Auto-detection failed - going to manual mapping');
+      setCurrentStep('mapping');
+    }
   };
 
   const validateMapping = () => {
@@ -209,23 +258,58 @@ const CSVUploader = ({
             categoryId = matchedCategory ? matchedCategory.$id : null;
           }
 
-          // Process date
-          let processedDate = new Date().toISOString();
+          // Process date - Enhanced parsing with multiple format support
+          let processedDate = null;
           if (expense.date) {
-            const parsedDate = new Date(expense.date);
+            const dateStr = expense.date.toString().trim();
+            
+            // Try multiple date parsing approaches
+            let parsedDate = null;
+            
+            // Method 1: Direct parsing (works for ISO formats like 2025-08-30)
+            parsedDate = new Date(dateStr);
+            
+            // Method 2: If direct parsing fails, try common formats
+            if (isNaN(parsedDate.getTime())) {
+              // Try DD/MM/YYYY or DD-MM-YYYY formats
+              const ddmmyyyy = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+              if (ddmmyyyy) {
+                const [, day, month, year] = ddmmyyyy;
+                parsedDate = new Date(year, month - 1, day); // month is 0-indexed
+              }
+              
+              // Try YYYY/MM/DD or YYYY-MM-DD formats (already handled by direct parsing)
+              // Try MM/DD/YYYY format
+              const mmddyyyy = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+              if (mmddyyyy && isNaN(parsedDate.getTime())) {
+                const [, month, day, year] = mmddyyyy;
+                parsedDate = new Date(year, month - 1, day);
+              }
+            }
+            
+            // Only use parsed date if it's valid
             if (!isNaN(parsedDate.getTime())) {
               processedDate = parsedDate.toISOString();
+              console.log(`✅ Parsed date: "${dateStr}" -> "${processedDate}"`);
+            } else {
+              console.log(`❌ Failed to parse date: "${dateStr}" - skipping this expense`);
+              errors.push(`Row ${i + 1}: Invalid date format "${dateStr}"`);
+              continue; // Skip this expense instead of using current date
             }
+          } else {
+            console.log(`⚠️ No date field found for expense: ${expense.description} - skipping`);
+            errors.push(`Row ${i + 1}: Missing date field`);
+            continue; // Skip expenses without dates
           }
 
           processedExpenses.push({
             amount: amount,
             description: expense.description.trim(),
             categoryId: categoryId,
-            notes: expense.notes || '',
             createdAt: processedDate
           });
 
+          console.log(`📝 Added expense: ${expense.description} with date: ${processedDate}`);
         } catch (error) {
           errors.push(`Row ${i + 1}: ${error.message}`);
         }
@@ -243,11 +327,18 @@ const CSVUploader = ({
         return;
       }
 
-      // Pass processed data back to parent
-      onUploadComplete(processedExpenses);
+      // Use bulk import with date preservation instead of passing to parent
+      const importResults = await bulkImportExpenses(processedExpenses, userId);
+      
+      Alert.alert(
+        'Import Complete',
+        `Successfully imported ${importResults.success} expenses.${importResults.failed > 0 ? `\nFailed: ${importResults.failed}` : ''}`
+      );
+
+      // Notify parent component of completion (without data)
+      onUploadComplete([]);
       resetState();
       onClose();
-
     } catch (error) {
       Alert.alert('Error', 'Failed to process data: ' + error.message);
     } finally {
@@ -281,46 +372,85 @@ const CSVUploader = ({
     </View>
   );
 
-  const renderPreview = () => (
-    <View>
-      <Text className="text-lg font-pmedium text-gray-700 mb-4">
-        File Preview: {selectedFile?.name}
-      </Text>
-      <Text className="text-sm text-gray-600 mb-4">
-        Found {parsedData.length} rows. First 3 rows:
-      </Text>
+  const renderPreview = () => {
+    // Check if auto-detection was successful
+    const requiredFields = ['amount', 'description'];
+    const mappedFields = Object.values(columnMapping);
+    const hasRequiredFields = requiredFields.every(field => mappedFields.includes(field));
 
-      <ScrollView horizontal className="mb-4">
-        <View className="bg-gray-50 p-3 rounded-lg">
-          {parsedData.slice(0, 3).map((row, index) => (
-            <View key={index} className="mb-2">
-              <Text className="font-pmedium text-xs text-gray-600">Row {index + 1}:</Text>
-              <Text className="text-xs text-gray-800">
-                {JSON.stringify(row, null, 2)}
-              </Text>
+    return (
+      <View>
+        <Text className="text-lg font-pmedium text-gray-700 mb-4">
+          File Preview: {selectedFile?.name}
+        </Text>
+        <Text className="text-sm text-gray-600 mb-4">
+          Found {parsedData.length} rows. First 3 rows:
+        </Text>
+
+        <ScrollView horizontal className="mb-4">
+          <View className="bg-gray-50 p-3 rounded-lg">
+            {parsedData.slice(0, 3).map((row, index) => (
+              <View key={index} className="mb-2">
+                <Text className="font-pmedium text-xs text-gray-600">Row {index + 1}:</Text>
+                <Text className="text-xs text-gray-800">
+                  {JSON.stringify(row, null, 2)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+
+        {/* Show detected column mappings */}
+        {hasRequiredFields && (
+          <View className="bg-green-50 p-3 rounded-lg mb-4">
+            <Text className="text-sm font-pmedium text-green-800 mb-2">
+              ✅ Auto-detected mappings:
+            </Text>
+            {Object.entries(columnMapping)
+              .filter(([_, field]) => field !== 'ignore')
+              .map(([column, field]) => (
+                <Text key={column} className="text-xs text-green-700">
+                  • {column} → {field}
+                </Text>
+              ))}
+          </View>
+        )}
+
+        <View className="flex-row justify-between gap-3">
+          <View className="w-[45%]">
+            <CustomButton
+              title="Back"
+              handlePress={() => setCurrentStep('select')}
+              containerStyles="flex-1 py-4 px-6 rounded-xl"
+              buttoncolor="bg-blue-500"
+              textStyles="text-white text-base font-pmedium text-center"
+              fullWidth />
+          </View>
+
+          {hasRequiredFields ? (
+            <View className="w-[45%]">
+              <CustomButton
+                title="Import Now"
+                handlePress={processData}
+                containerStyles="flex-1 py-4 px-6 rounded-xl"
+                buttoncolor="bg-green-500"
+                textStyles="text-white text-base font-pmedium text-center"
+                fullWidth
+              />
             </View>
-          ))}
+          ) : (
+            <CustomButton
+              title="Manual Mapping"
+              handlePress={() => setCurrentStep('mapping')}
+              containerStyles="flex-1 py-4 px-6 rounded-xl"
+              buttoncolor="bg-blue-600"
+              textStyles="text-white text-base font-pmedium text-center"
+            />
+          )}
         </View>
-      </ScrollView>
-
-      <View className="flex-row gap-3">
-        <CustomButton
-          title="Back"
-          handlePress={() => setCurrentStep('select')}
-          containerStyles="flex-1 py-3 rounded-xl"
-          buttoncolor="bg-gray-500"
-          textStyles="text-white font-pmedium"
-        />
-        <CustomButton
-          title="Next: Map Columns"
-          handlePress={() => setCurrentStep('mapping')}
-          containerStyles="flex-1 py-3 rounded-xl"
-          buttoncolor="bg-blue-600"
-          textStyles="text-white font-pmedium"
-        />
       </View>
-    </View>
-  );
+    );
+  };
 
   const renderColumnMapping = () => (
     <View>
@@ -345,13 +475,13 @@ const CSVUploader = ({
                         [csvColumn]: option.key
                       }))}
                       className={`px-3 py-1 rounded-full ${columnMapping[csvColumn] === option.key
-                          ? 'bg-blue-600'
-                          : 'bg-gray-200'
+                        ? 'bg-blue-600'
+                        : 'bg-gray-200'
                         }`}
                     >
                       <Text className={`text-xs ${columnMapping[csvColumn] === option.key
-                          ? 'text-white font-pmedium'
-                          : 'text-gray-600'
+                        ? 'text-white font-pmedium'
+                        : 'text-gray-600'
                         }`}>
                         {option.label}
                       </Text>
@@ -364,20 +494,20 @@ const CSVUploader = ({
         ))}
       </ScrollView>
 
-      <View className="flex-row gap-3">
+      <View className="flex-row justify-between w-full mt-4 gap-3">
         <CustomButton
           title="Back"
           handlePress={() => setCurrentStep('preview')}
           containerStyles="flex-1 py-3 rounded-xl"
-          buttoncolor="bg-gray-500"
-          textStyles="text-white font-pmedium"
+          buttoncolor="bg-gray-100 border border-gray-300"
+          textStyles="text-black font-psemibold text-base text-center"
         />
         <CustomButton
           title="Import Expenses"
           handlePress={processData}
-          containerStyles="flex-1 py-3 rounded-xl"
-          buttoncolor="bg-green-600"
-          textStyles="text-white font-pmedium"
+          containerStyles="py-3 px-4 rounded-xl w-full"
+          buttoncolor="bg-blue-500"
+          textStyles="text-white text-sm font-pmedium text-center"
         />
       </View>
     </View>
