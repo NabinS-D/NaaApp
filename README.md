@@ -277,3 +277,11 @@ For support and questions:
 - Create an issue on GitHub
 - Check the troubleshooting section
 - Review Expo and Appwrite documentation
+
+## 🙏 Acknowledgments
+
+- **Expo Team** for the excellent React Native framework
+- **Appwrite** for the robust backend-as-a-service
+- **OneSignal** for reliable push notifications
+- **Hugging Face** for AI model hosting
+- **OCR.space** for OCR processing capabilities

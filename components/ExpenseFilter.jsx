@@ -6,9 +6,11 @@ import {
     Modal,
     ScrollView,
     TextInput,
+    Platform,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import CustomButton from './CustomButton';
 
 const ExpenseFilter = memo(({
@@ -28,6 +30,8 @@ const ExpenseFilter = memo(({
     });
 
     const [showValidationError, setShowValidationError] = useState(false);
+    const [showDateFromPicker, setShowDateFromPicker] = useState(false);
+    const [showDateToPicker, setShowDateToPicker] = useState(false);
 
 
     // Reset filters to current when modal opens
@@ -132,12 +136,28 @@ const ExpenseFilter = memo(({
         return !isNaN(date.getTime());
     };
 
-    const handleDateFromChange = (dateString) => {
-        setFilters(prev => ({ ...prev, dateFrom: dateString }));
+    const handleDateFromChange = (event, selectedDate) => {
+        setShowDateFromPicker(Platform.OS === 'ios');
+        if (selectedDate) {
+            const dateString = selectedDate.toISOString().split('T')[0];
+            setFilters(prev => ({ ...prev, dateFrom: dateString }));
+        }
     };
 
-    const handleDateToChange = (dateString) => {
-        setFilters(prev => ({ ...prev, dateTo: dateString }));
+    const handleDateToChange = (event, selectedDate) => {
+        setShowDateToPicker(Platform.OS === 'ios');
+        if (selectedDate) {
+            const dateString = selectedDate.toISOString().split('T')[0];
+            setFilters(prev => ({ ...prev, dateTo: dateString }));
+        }
+    };
+
+    const showDateFromPickerModal = () => {
+        setShowDateFromPicker(true);
+    };
+
+    const showDateToPickerModal = () => {
+        setShowDateToPicker(true);
     };
 
     return (
@@ -186,36 +206,47 @@ const ExpenseFilter = memo(({
                             {/* Date From */}
                             <View className="mb-2">
                                 <Text className="text-sm text-gray-600 mb-1">From</Text>
-                                <TextInput
-                                    placeholder="YYYY-MM-DD"
-                                    value={formatDateForInput(filters.dateFrom)}
-                                    onChangeText={handleDateFromChange}
-                                    maxLength={10}
-                                    className={`border rounded-lg p-3 bg-gray-50 text-gray-700 ${filters.dateFrom && !isValidDateString(filters.dateFrom)
-                                            ? 'border-red-400'
-                                            : 'border-gray-300'
-                                        }`}
-                                />
-                                {filters.dateFrom && !isValidDateString(filters.dateFrom) && (
-                                    <Text className="text-red-500 text-xs mt-1">Invalid date format</Text>
+                                <TouchableOpacity
+                                    onPress={showDateFromPickerModal}
+                                    className="border border-gray-300 rounded-lg p-3 bg-gray-50 flex-row items-center justify-between"
+                                >
+                                    <Text className={`text-gray-700 ${!filters.dateFrom ? 'text-gray-400' : ''}`}>
+                                        {formatDateForInput(filters.dateFrom) || 'Select start date'}
+                                    </Text>
+                                    <MaterialIcons name="date-range" size={20} color="#6B7280" />
+                                </TouchableOpacity>
+                                {showDateFromPicker && (
+                                    <DateTimePicker
+                                        value={filters.dateFrom ? new Date(filters.dateFrom) : new Date()}
+                                        mode="date"
+                                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                                        onChange={handleDateFromChange}
+                                        maximumDate={new Date()}
+                                    />
                                 )}
                             </View>
 
                             {/* Date To */}
                             <View className="mb-2">
                                 <Text className="text-sm text-gray-600 mb-1">To</Text>
-                                <TextInput
-                                    placeholder="YYYY-MM-DD"
-                                    value={formatDateForInput(filters.dateTo)}
-                                    onChangeText={handleDateToChange}
-                                    maxLength={10}
-                                    className={`border rounded-lg p-3 bg-gray-50 text-gray-700 ${filters.dateTo && !isValidDateString(filters.dateTo)
-                                            ? 'border-red-400'
-                                            : 'border-gray-300'
-                                        }`}
-                                />
-                                {filters.dateTo && !isValidDateString(filters.dateTo) && (
-                                    <Text className="text-red-500 text-xs mt-1">Invalid date format</Text>
+                                <TouchableOpacity
+                                    onPress={showDateToPickerModal}
+                                    className="border border-gray-300 rounded-lg p-3 bg-gray-50 flex-row items-center justify-between"
+                                >
+                                    <Text className={`text-gray-700 ${!filters.dateTo ? 'text-gray-400' : ''}`}>
+                                        {formatDateForInput(filters.dateTo) || 'Select end date'}
+                                    </Text>
+                                    <MaterialIcons name="date-range" size={20} color="#6B7280" />
+                                </TouchableOpacity>
+                                {showDateToPicker && (
+                                    <DateTimePicker
+                                        value={filters.dateTo ? new Date(filters.dateTo) : new Date()}
+                                        mode="date"
+                                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                                        onChange={handleDateToChange}
+                                        maximumDate={new Date()}
+                                        minimumDate={filters.dateFrom ? new Date(filters.dateFrom) : undefined}
+                                    />
                                 )}
                             </View>
 
