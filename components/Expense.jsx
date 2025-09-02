@@ -15,6 +15,7 @@ import { Picker } from "@react-native-picker/picker";
 import { router } from "expo-router";
 import * as ImagePicker from 'expo-image-picker';
 import ImagePickerComponent from './ImagePickerComponent';
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
 import { useGlobalContext } from "../context/GlobalProvider.js";
@@ -28,6 +29,7 @@ import useAlertContext from "../context/AlertProvider.js";
 import QRScanner from "./QRScanner.jsx";
 import ExpenseFilter from "./ExpenseFilter.jsx";
 import CSVUploader from "./CSVUploader.jsx";
+import { processImageWithOCR, parseOCRText } from "../lib/ocr.js";
 
 // Memoized Header Buttons Component
 const HeaderButtons = memo(({ onAddExpense, onAddCategory, onListCategories, onScanReceipt, onScanQR, onFilter, onCSVUpload }) => (
@@ -796,22 +798,16 @@ const ExpenseTracker = () => {
       const manipResult = await ImageManipulator.manipulateAsync(
         result.assets[0].uri,
         [
-          { resize: { width: 1200 } }, // Increased resolution for better OCR
-          { flip: ImageManipulator.FlipType.Vertical }, // Sometimes helps with orientation
-          { flip: ImageManipulator.FlipType.Vertical }, // Flip back to original
+          { resize: { width: 800 } }, // Reduced from 1200 to prevent timeout
         ],
-        { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true } // Reduced quality
       );
       let parsedData = {};
       try {
         const ocrText = await processImageWithOCR(manipResult.base64);
         parsedData = parseOCRText(ocrText);
       } catch (ocrError) {
-        console.error('=== OCR PROCESS ERROR ===');
-        console.error('Error type:', ocrError.name);
-        console.error('Error message:', ocrError.message);
-        console.error('Full error:', ocrError);
-        // Don't throw error, continue with manual entry
+        showAlert('OCR Error', `Failed to process receipt: ${ocrError.message || ocrError}`, 'error');
         parsedData = {};
       }
 
@@ -839,7 +835,7 @@ const ExpenseTracker = () => {
       console.error('Error type:', error.name);
       console.error('Error message:', error.message);
       console.error('Full error:', error);
-      showAlert('OCR Error', `Failed to scan receipt: ${error.message}`);
+      showAlert('Error', `Failed to scan receipt: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
