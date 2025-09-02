@@ -57,8 +57,7 @@ export default function App() {
       } catch (error) {
         showAlert(
           "Server Error",
-          `OneSignal initialization failed: ${
-            error instanceof Error ? error.message : "Unknown error"
+          `OneSignal initialization failed: ${error instanceof Error ? error.message : "Unknown error"
           }`,
           "error"
         );
